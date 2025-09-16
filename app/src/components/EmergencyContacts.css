@@ -1,0 +1,480 @@
+/* Emergency Contacts Modal Styles */
+.emergency-contacts-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff !important;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 55px;
+}
+
+.top-black-bar {
+  height: 44px;
+  background: #000;
+  width: 100%;
+}
+
+.emergency-contacts-header {
+  padding: 16px 20px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 60px;
+  margin-top: 35px;
+  border-radius: 20px 20px 0 0;
+  z-index: 1;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #000000;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-btn:hover {
+  background: #f0f0f0;
+  color: #000000;
+  transform: translateX(-2px);
+}
+
+.emergency-contacts-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.emergency-contacts-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 20px 20px;
+  background: #ffffff !important;
+}
+
+/* Detail Sections */
+.detail-section {
+  margin: 24px 0;
+  padding: 20px;
+  background: #ffffff !important;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e0e0e0;
+}
+
+.detail-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #000000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Quick Actions */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.quick-action-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 12px;
+  background: #f5f5f5;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: #000000;
+  border: none;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: #e8e8e8;
+}
+
+/* All quick action buttons now use the same styling */
+
+.action-text {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #000000;
+  text-align: left;
+}
+
+.action-number {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #333333;
+  font-family: 'Courier New', monospace;
+  text-align: right;
+}
+
+/* Category Dropdown */
+.category-dropdown-wrapper {
+  position: relative;
+}
+
+.category-dropdown {
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #000000;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  appearance: none;
+}
+
+.category-dropdown:focus {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+}
+
+/* Dropdown Arrow Icon */
+.category-dropdown-wrapper::after {
+  content: "▼";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.8rem;
+  color: #000000;
+  font-weight: bold;
+}
+
+/* Category tabs removed - using dropdown instead */
+
+/* Category Header */
+.category-header {
+  padding-left: 16px;
+  margin-bottom: 20px;
+}
+
+.category-header h3 {
+  margin-bottom: 8px;
+  color: #000000;
+}
+
+.category-description {
+  color: #333333;
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Contacts Grid */
+.contacts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.contact-card {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.contact-card.clickable {
+  cursor: pointer;
+}
+
+.contact-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: #e8e8e8;
+}
+
+.contact-card.clickable:hover {
+  background: #e0e0e0;
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.contact-left {
+  flex: 1;
+  text-align: left;
+}
+
+.contact-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.contact-name {
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000000;
+}
+
+.contact-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #333333;
+  line-height: 1.3;
+}
+
+.number-text {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #000000;
+  background: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.copy-hint {
+  font-size: 0.75rem;
+  color: #666666;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.contact-card.clickable:hover .copy-hint {
+  color: #000000;
+  opacity: 1;
+}
+
+/* Contact actions removed - now clicking on card copies number */
+
+/* Additional Info */
+.additional-info {
+  margin-top: 20px;
+  padding-top: 20px;
+  background: #f8f8f8;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.info-item {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-item label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333333;
+}
+
+.info-value {
+  font-size: 0.9rem;
+  color: #000000;
+}
+
+.info-value a {
+  color: #000000;
+  text-decoration: underline;
+}
+
+.info-value a:hover {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Notice Section */
+.notice-section {
+  background: #f8f8f8;
+}
+
+.notice-content p {
+  margin: 8px 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #000000;
+}
+
+.notice-content strong {
+  color: #000000;
+  font-weight: 700;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .emergency-contacts-content {
+    padding: 0 16px 16px 16px;
+  }
+  
+  .detail-section {
+    margin: 16px 0;
+    padding: 16px;
+  }
+  
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .category-dropdown {
+    font-size: 0.9rem;
+    padding: 10px 36px 10px 14px;
+  }
+  
+  .category-dropdown-wrapper::after {
+    right: 14px;
+    font-size: 0.7rem;
+  }
+  
+  .contact-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .contact-right {
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .copy-hint {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .category-tabs {
+    grid-template-columns: 1fr;
+  }
+  
+  .emergency-contacts-header {
+    padding: 12px 16px;
+  }
+  
+  .emergency-contacts-header h2 {
+    font-size: 1.2rem;
+  }
+}
+
+/* Animation */
+.emergency-contacts-container {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Loading and Hover Effects */
+.contact-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transition: left 0.5s ease;
+}
+
+.contact-card:hover::before {
+  left: 100%;
+}
+
+/* Accessibility */
+.action-btn:focus,
+.category-tab:focus,
+.quick-action-btn:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Force white and black theme - override dark mode */
+@media (prefers-color-scheme: dark) {
+  .emergency-contacts-container {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  .emergency-contacts-header {
+    background: #ffffff !important;
+  }
+  
+  .emergency-contacts-content {
+    background: #ffffff !important;
+  }
+  
+  .detail-section {
+    background: #ffffff !important;
+  }
+  
+  .contact-card,
+  .quick-action-btn {
+    background: #f5f5f5 !important;
+    color: #000000 !important;
+  }
+  
+  .contact-card:hover,
+  .quick-action-btn:hover {
+    background: #e8e8e8 !important;
+  }
+  
+  .category-dropdown {
+    background: #f5f5f5 !important;
+    color: #000000 !important;
+  }
+  
+  .number-text {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  .notice-section,
+  .additional-info {
+    background: #f8f8f8 !important;
+  }
+}

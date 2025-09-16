@@ -1,0 +1,135 @@
+/* Remove all focus outlines and blue hover effects globally */
+* {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation;
+}
+
+button,
+input,
+select,
+textarea,
+a,
+div[role="button"],
+[tabindex] {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-focus-ring-color: transparent !important;
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus,
+div[role="button"]:focus,
+[tabindex]:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  border-color: initial !important;
+}
+
+button:active,
+input:active,
+select:active,
+textarea:active,
+a:active {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+html, body {
+  overflow-x: hidden;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+body {
+  zoom: 1;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Prevent pinch zoom */
+.app-container, #root {
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
+}
+
+/* Audio Recorder Styles */
+.audio-recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.audio-record-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  width: 100%;
+  max-width: 180px;
+}
+
+.audio-record-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.audio-record-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.audio-record-btn.recording {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  animation: pulse 2s infinite;
+}
+
+.audio-record-btn.disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.audio-record-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(255, 107, 107, 0.6);
+  }
+  100% {
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  }
+}
+
+.error-message {
+  max-width: 300px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.permission-info {
+  max-width: 300px;
+  text-align: center;
+  line-height: 1.4;
+}

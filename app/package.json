@@ -1,0 +1,37 @@
+{
+  "name": "civic-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:build:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri build",
+    "tauri:build:local": "cross-env TAURI_API_ENDPOINT=http://127.0.0.1:5000/api/issues tauri build",
+    "tauri:dev:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri dev",
+    "tauri:android:dev:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri android dev",
+    "tauri:android:build:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri android build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "@tauri-apps/plugin-fs": "^2.4.2",
+    "@tauri-apps/plugin-geolocation": "^2.3.0",
+    "@tauri-apps/plugin-opener": "^2",
+    "leaflet": "^1.9.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-icons": "^5.5.0",
+    "react-leaflet": "^5.0.0",
+    "tauri-plugin-camera": "^0.1.4",
+    "tauri-plugin-mic-recorder-api": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@vitejs/plugin-react": "^4.6.0",
+    "cross-env": "^10.0.0",
+    "vite": "^7.0.4"
+  }
+}

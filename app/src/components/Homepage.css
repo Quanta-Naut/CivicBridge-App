@@ -1,0 +1,1085 @@
+/* Remove focus outlines for homepage elements */
+.homepage * {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.homepage button:focus,
+.homepage button:active {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.homepage {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* User Info Bar */
+.user-info-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #000000;
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.user-mobile {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.map-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #f8f8f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+/* Location Indicator */
+.location-indicator {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  z-index: 1000;
+}
+
+/* Location Permission UI */
+.location-prompt {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.location-btn {
+  background: #2196F3;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+  transition: all 0.2s ease;
+}
+
+.location-btn:hover {
+  background: #1976D2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+.location-denied {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(244, 67, 54, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  max-width: 200px;
+  z-index: 1000;
+}
+
+/* Leaflet Map Styles */
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  z-index: 1;
+}
+
+.issue-marker {
+  filter: hue-rotate(0deg) saturate(1.5) brightness(1.2);
+}
+
+/* Leaflet popup customization */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 12px;
+  line-height: 1.4;
+}
+
+/* Live location marker animation */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Custom marker styles */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.live-location-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Sliding Panel */
+.sliding-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 70px; /* Account for fixed bottom navbar */
+  background: white;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.15);
+  transition: height 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Handle */
+.panel-handle {
+  width: 40px;
+  height: 4px;
+  background: #ccc;
+  border-radius: 2px;
+  margin: 8px auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, width 0.2s ease;
+}
+
+.panel-handle:hover {
+  background: #999;
+  width: 50px;
+}
+
+.panel-handle:active {
+  cursor: grabbing;
+  background: #666;
+  width: 60px;
+}
+
+/* Panel Drag Area */
+.panel-drag-area {
+  padding: 15px 0;
+  touch-action: none;
+  user-select: none;
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+.panel-drag-area:active {
+  cursor: grabbing;
+}
+
+/* Remove cursor from handle since drag area handles it */
+.panel-drag-area .panel-handle {
+  cursor: inherit;
+  margin: 0 auto;
+}
+
+/* Raise Ticket Button Section */
+.search-section {
+  padding: 16px;
+  flex-shrink: 0;
+}
+
+.raise-ticket-btn {
+  width: 100%;
+  background: #000;
+  color: white;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.raise-ticket-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  background: #333;
+  color: white;
+}
+
+.refresh-btn {
+  width: 100%;
+  background: #f8f9fa;
+  color: #333;
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #e9ecef;
+  border-color: #dee2e6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.view-all-issues-btn {
+  width: 100%;
+  background: #007bff;
+  color: white;
+  padding: 12px 16px;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.view-all-issues-btn:hover {
+  background: #0056b3;
+  border-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Issues List */
+.issues-section {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Simple issue card styles */
+.issue-card-simple {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.issue-card-simple:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+/* Issue card content */
+.issue-card-content {
+  flex: 1;
+  cursor: pointer;
+}
+
+.issue-card-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.issue-title-clean {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.issue-date-clean {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.vouch-btn-clean {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.vouch-btn-clean:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.vouch-btn-clean.vouched {
+  background: #6b7280;
+  color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.vouch-btn-clean:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Removed expanded card styles - now using popup */
+
+/* Legacy styles - keeping for compatibility */
+.issue-item {
+  padding: 12px;
+  transition: background-color 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.issue-item:hover {
+  background-color: #f8f8f8;
+}
+
+.issue-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.issue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.issue-title {
+  font-weight: 600;
+  color: #000;
+  flex: 1;
+}
+
+.issue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.issue-date {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.issue-category {
+  font-size: 0.8rem;
+  color: #555;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.issue-priority {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.priority-urgent {
+  background: #fee;
+  color: #c53030;
+}
+
+.priority-high {
+  background: #fff5e6;
+  color: #d69e2e;
+}
+
+.priority-medium {
+  background: #fffff0;
+  color: #b7791f;
+}
+
+.priority-low {
+  background: #f0fff0;
+  color: #38a169;
+}
+
+/* Priority styles for popup */
+.popup-meta-value.priority-urgent {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.popup-meta-value.priority-high {
+  color: #ea580c;
+  font-weight: 600;
+}
+
+.popup-meta-value.priority-medium {
+  color: #ca8a04;
+  font-weight: 600;
+}
+
+.popup-meta-value.priority-low {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.issue-status {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-open {
+  background: #e6f3ff;
+  color: #0066cc;
+}
+
+.status-in-progress {
+  background: #fff5e6;
+  color: #d69e2e;
+}
+
+.status-resolved, .status-completed {
+  background: #f0fff0;
+  color: #38a169;
+}
+
+.status-closed {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.issue-description {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.no-issues {
+  text-align: center;
+  color: #333;
+  font-style: italic;
+  padding: 20px;
+}
+
+.loading-issues {
+  text-align: center;
+  color: #666;
+  padding: 20px;
+}
+
+.issue-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.view-btn {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+  background: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.issue-status {
+  font-size: 0.8rem;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+/* Bottom Icons */
+.bottom-icons {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 5px 0;
+  background: white;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  border-top: 1px solid #f0f0f0;
+  height: 70px;
+}
+
+/* Fixed Bottom Navigation */
+.fixed-navbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  background: white;
+  box-shadow: 0 -4px 20px rgba(236, 229, 229, 0.15);
+  height: 70px;
+}
+
+.icon-btn {
+  background: #ffffff;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 8px;
+  transition: all 0.3s ease;
+  color: rgb(0, 0, 0);
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Issue Popup Styles */
+.issue-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  padding: 20px;
+}
+
+.issue-popup-content {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: popupSlideIn 0.3s ease-out;
+}
+
+@keyframes popupSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.issue-popup-header {
+  padding: 20px 20px 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.issue-popup-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.4;
+  flex: 1;
+  padding-right: 16px;
+}
+
+.issue-popup-close {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 300;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.issue-popup-close:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.issue-popup-body {
+  padding: 20px;
+}
+
+.issue-popup-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.popup-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.popup-meta-label {
+  font-weight: 600;
+  color: #374151;
+  min-width: 80px;
+  font-size: 0.875rem;
+}
+
+.popup-meta-value {
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.popup-status {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.issue-popup-description {
+  margin-top: 20px;
+}
+
+.issue-popup-description h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.issue-popup-description p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.6;
+  font-size: 0.875rem;
+}
+
+.issue-popup-footer {
+  padding: 16px 20px 20px 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.popup-vouch-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.popup-vouch-btn:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.popup-vouch-btn.vouched {
+  background: #6b7280;
+  color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.popup-vouch-btn:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+.popup-detail-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.popup-detail-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+/* Top Black Bar */
+.top-black-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #000;
+  z-index: 0;
+}
+
+/* Map Background */
+.map-container {
+  position: absolute;
+  top: 35px; /* Account for user info bar */
+  left: 0;
+  right: 0;
+  transition: height 0.3s ease;
+  overflow: hidden;
+ border-radius: 20px 20px 0 0;
+}
+
+/* View Management */
+.home-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.home-view.active {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.home-view.hidden {
+  opacity: 0;
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+
+.issue-form-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1500;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.issue-form-view.active {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.issue-form-view.hidden {
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+/* Emergency Contacts Modal */
+.emergency-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.emergency-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.emergency-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.emergency-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 5px;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+.emergency-content {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.emergency-section {
+  margin-bottom: 25px;
+}
+
+.emergency-section:last-child {
+  margin-bottom: 0;
+}
+
+.emergency-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e1e5e9;
+  padding-bottom: 8px;
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.contact-row:last-child {
+  border-bottom: none;
+}
+
+.contact-row span {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.call-btn {
+  background: #007bff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-btn:hover {
+  background: #0056b3;
+  transform: scale(1.05);
+}
+
+.call-btn:active {
+  transform: scale(0.98);
+}
+
+.website-info {
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.website-info p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.office-info {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.office-info p {
+  margin: 6px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.office-info strong {
+  color: #000;
+}
+
+/* Mobile responsiveness for emergency modal */
+@media (max-width: 480px) {
+  .emergency-modal-overlay {
+    padding: 10px;
+  }
+  
+  .emergency-modal {
+    max-height: 95vh;
+  }
+  
+  .emergency-header {
+    padding: 15px;
+  }
+  
+  .emergency-content {
+    padding: 15px;
+  }
+  
+  .contact-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .call-btn {
+    align-self: flex-end;
+    margin-left: 0;
+  }
+}
