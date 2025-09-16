@@ -1,5 +1,0 @@
-# Install CORS support for Flask
-pip install flask-cors
-
-# Then restart your Flask server:
-python flask_api_example.py
