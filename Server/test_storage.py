@@ -53,7 +53,7 @@ def test_supabase_storage():
     
     # Create a test image file
     test_content = b"Test image content for Supabase Storage"
-    test_filename = "test_upload.txt"
+    test_filename = "images/test_upload.txt"  # Store in images folder
     
     try:
         # Upload test file
@@ -64,7 +64,7 @@ def test_supabase_storage():
         )
         
         if upload_response:
-            print("   ✅ Test file uploaded successfully")
+            print("   ✅ Test file uploaded successfully to images/ folder")
             
             # Get public URL
             public_url = client.storage.from_('Civic-Image-Bucket').get_public_url(test_filename)

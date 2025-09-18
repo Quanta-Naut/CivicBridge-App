@@ -582,24 +582,32 @@ def upload_to_supabase_storage(file_data, filename, bucket_name='Civic-Image-Buc
         # Generate unique filename to prevent conflicts
         unique_filename = f"{uuid.uuid4()}_{filename}"
         
+        # Determine folder based on bucket type
+        if bucket_name == 'Civic-Image-Bucket':
+            folder_path = f"Images/{unique_filename}"
+        elif bucket_name == 'Civic-Audio-Bucket':
+            folder_path = f"Audio/{unique_filename}"
+        else:
+            folder_path = unique_filename  # Fallback for other buckets
+        
         # Convert file_data to bytes if it's a file-like object
         if hasattr(file_data, 'read'):
             file_bytes = file_data.read()
         else:
             file_bytes = file_data
             
-        # Upload to Supabase Storage
+        # Upload to Supabase Storage with folder organization
         response = supabase.storage.from_(bucket_name).upload(
-            path=unique_filename,
+            path=folder_path,
             file=file_bytes,
             file_options={"cache-control": "3600", "upsert": "false"}
         )
         
         if response:
-            # Get public URL
-            public_url = supabase.storage.from_(bucket_name).get_public_url(unique_filename)
+            # Get public URL using the folder path
+            public_url = supabase.storage.from_(bucket_name).get_public_url(folder_path)
             print(f"✓ File uploaded successfully: {public_url}")
-            return {'success': True, 'url': public_url, 'filename': unique_filename}
+            return {'success': True, 'url': public_url, 'filename': folder_path}
         else:
             return {'success': False, 'error': 'Upload failed - no response from storage'}
             

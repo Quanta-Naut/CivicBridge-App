@@ -94,14 +94,22 @@ The following packages are required and will be automatically installed:
 - **Better Analytics**: File access tracking through Supabase
 - **Version Control**: Storage bucket versioning capabilities
 
-## File Naming Convention
-Files are stored with unique names to prevent conflicts:
-- Images: `{uuid}_{title}_{timestamp}_issue_image.jpg`
-- Audio: `{uuid}_{title}_{timestamp}_issue_audio.webm`
+## File Organization & Naming Convention
+Files are organized in folders within buckets and stored with unique names to prevent conflicts:
+
+### Folder Structure:
+- **Civic-Image-Bucket**
+  - `images/` folder contains all image files
+- **Civic-Audio-Bucket** 
+  - `audio/` folder contains all audio files
+
+### File Names:
+- Images: `images/{uuid}_{title}_{timestamp}_issue_image.jpg`
+- Audio: `audio/{uuid}_{title}_{timestamp}_issue_audio.webm`
 
 ## URLs Generated
-- **Image URL Format**: `https://hpltdxodlhwsikmcxuws.storage.supabase.co/storage/v1/object/public/Civic-Image-Bucket/{filename}`
-- **Audio URL Format**: `https://hpltdxodlhwsikmcxuws.storage.supabase.co/storage/v1/object/public/Civic-Audio-Bucket/{filename}`
+- **Image URL Format**: `https://hpltdxodlhwsikmcxuws.storage.supabase.co/storage/v1/object/public/Civic-Image-Bucket/images/{filename}`
+- **Audio URL Format**: `https://hpltdxodlhwsikmcxuws.storage.supabase.co/storage/v1/object/public/Civic-Audio-Bucket/audio/{filename}`
 
 ## Backward Compatibility
 - Existing base64 data in database remains functional
@@ -113,9 +121,10 @@ Files are stored with unique names to prevent conflicts:
 
 ### Common Issues
 1. **Storage bucket doesn't exist**: Ensure buckets are created in Supabase dashboard
-2. **Permission denied**: Check bucket policies and public access settings
-3. **Upload fails**: Verify Supabase credentials and network connectivity
-4. **Images don't load**: Check bucket public access and CORS settings
+2. **"new row violates row-level security policy"**: Configure RLS policies (see fix_storage_policies.sql)
+3. **Permission denied**: Check bucket policies and public access settings  
+4. **Upload fails**: Verify Supabase credentials and network connectivity
+5. **Images don't load**: Check bucket public access and CORS settings
 
 ### Fallback Behavior
 If Supabase Storage upload fails:
