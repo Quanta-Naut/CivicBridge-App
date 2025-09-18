@@ -787,6 +787,7 @@ def firebase_auth():
             user_data = {
                 'mobile_number': normalized_phone,  # Use normalized format (10 digits)
                 'firebase_uid': firebase_uid,
+                'civic_id': generate_civic_id(),  # Generate civic ID for new user
                 'is_verified': True,
                 'auth_provider': 'firebase'
                 # Remove created_at - let database handle with DEFAULT NOW()
@@ -830,8 +831,13 @@ def firebase_auth():
             'user': {
                 'id': user['id'],
                 'mobile_number': user['mobile_number'],
+                'civic_id': user.get('civic_id'),
+                'full_name': user.get('full_name'),
+                'email': user.get('email'),
+                'address': user.get('address'),
                 'firebase_uid': user['firebase_uid'],
-                'auth_provider': 'firebase'
+                'is_verified': user.get('is_verified', True),
+                'auth_provider': user.get('auth_provider', 'firebase')
             }
         })
 
