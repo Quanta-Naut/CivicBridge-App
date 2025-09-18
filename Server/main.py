@@ -36,7 +36,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size (accounts for base64 encoding + large images)
 
 # Initialize Supabase client
 supabase_url = os.getenv('SUPABASE_URL')
@@ -68,6 +68,25 @@ if FIREBASE_AVAILABLE:
         print("⚠️  Firebase service account key not found in environment")
 else:
     print("⚠️  Firebase Admin SDK not available")
+
+# Error handlers
+@app.errorhandler(413)
+def too_large(e):
+    """Handle file too large errors"""
+    return jsonify({
+        'success': False,
+        'error': 'File too large. Maximum file size is 100MB.',
+        'message': 'Please compress your image or use a smaller file. Large images are automatically compressed on upload.'
+    }), 413
+
+@app.errorhandler(400)
+def bad_request(e):
+    """Handle bad request errors"""
+    return jsonify({
+        'success': False,
+        'error': 'Bad request',
+        'message': 'Invalid request data or format.'
+    }), 400
 
 def log_api_access(endpoint, method, client_ip):
     """Log API access with timestamp"""
