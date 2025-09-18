@@ -49,12 +49,13 @@ def upload_file_to_supabase(file_path, storage_path):
         with open(file_path, 'rb') as file:
             file_data = file.read()
         
-        # Upload to Supabase storage bucket 'uploads'
-        result = supabase.storage.from_('uploads').upload(storage_path, file_data)
+        # Upload to Supabase storage bucket (determine bucket based on file type)
+        bucket_name = 'Civic-Image-Bucket' if 'image' in storage_path.lower() else 'Civic-Audio-Bucket'
+        result = supabase.storage.from_(bucket_name).upload(storage_path, file_data)
         
         if result:
             # Get public URL
-            public_url = supabase.storage.from_('uploads').get_public_url(storage_path)
+            public_url = supabase.storage.from_(bucket_name).get_public_url(storage_path)
             return public_url
         
     except Exception as e:

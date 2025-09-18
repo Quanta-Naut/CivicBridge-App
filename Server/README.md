@@ -31,10 +31,12 @@ pip install -r requirements.txt
    - Go to SQL Editor in your Supabase dashboard
    - Run the SQL commands from `database_schema.sql`
 
-4. **Create storage bucket:**
+4. **Create storage buckets:**
    - Go to Storage in your Supabase dashboard
-   - Create a new bucket named 'uploads'
-   - Set it to public if you want direct file access
+   - Create the following buckets:
+     - 'Civic-Image-Bucket' for issue images
+     - 'Civic-Audio-Bucket' for issue audio files
+   - Set both buckets to public if you want direct file access
    - Configure upload policies as needed
 
 ### 3. Environment Configuration
@@ -134,7 +136,7 @@ Server/
    - Ensure the database table exists
 
 2. **File upload issues:**
-   - Verify the 'uploads' bucket exists in Supabase Storage
+   - Verify the 'Civic-Image-Bucket' and 'Civic-Audio-Bucket' buckets exist in Supabase Storage
    - Check bucket policies and permissions
    - Ensure file size doesn't exceed limit (16MB default)
 

@@ -45,7 +45,7 @@ echo.
 echo Next steps:
 echo 1. Edit .env file with your Supabase credentials
 echo 2. Run the SQL commands from database_schema.sql in your Supabase dashboard
-echo 3. Create 'uploads' storage bucket in Supabase dashboard
+echo 3. Create 'Civic-Image-Bucket' and 'Civic-Audio-Bucket' storage buckets in Supabase dashboard
 echo 4. Run: python flask_api_example.py
 echo.
 pause

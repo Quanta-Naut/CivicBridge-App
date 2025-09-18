@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import io
+import uuid
 
 # Firebase imports
 try:
@@ -180,40 +182,54 @@ def create_issue():
             return jsonify(error_response), 400
         
         # Handle image file if present
-        image_base64 = None
+        image_url = None
         image_filename = None
         if 'image' in request.files:
             image_file = request.files['image']
             if image_file.filename != '':
-                image_filename = secure_filename(f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{image_file.filename}")
+                # Create a clean filename
+                original_filename = secure_filename(f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_issue_image.jpg")
                 
-                # Save locally first
-                image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-                image_file.save(image_path)
+                # Upload to Supabase Storage
+                upload_result = upload_to_supabase_storage(image_file, original_filename)
                 
-                # Convert to base64
-                image_file.seek(0)  # Reset file pointer
-                image_data = image_file.read()
-                image_base64 = base64.b64encode(image_data).decode('utf-8')
-                print(f"✓ Image converted to base64 (size: {len(image_base64)} characters)")
+                if upload_result['success']:
+                    image_url = upload_result['url']
+                    image_filename = upload_result['filename']
+                    print(f"✓ Image uploaded to Supabase Storage: {image_url}")
+                else:
+                    print(f"✗ Failed to upload image to Supabase Storage: {upload_result['error']}")
+                    # Fallback to local storage for backwards compatibility
+                    image_file.seek(0)  # Reset file pointer
+                    image_filename = original_filename
+                    image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+                    image_file.save(image_path)
+                    print(f"✓ Image saved locally as fallback: {image_path}")
         
         # Handle audio file if present
-        audio_base64 = None
+        audio_url = None
         audio_filename = None
         if 'audio' in request.files:
             audio_file = request.files['audio']
             if audio_file.filename != '':
-                audio_filename = secure_filename(f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{audio_file.filename}")
+                # Create a clean filename  
+                original_audio_filename = secure_filename(f"{title}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_issue_audio.webm")
                 
-                # Save locally first
-                audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
-                audio_file.save(audio_path)
+                # Upload to Supabase Storage
+                upload_result = upload_to_supabase_storage(audio_file, original_audio_filename, 'Civic-Audio-Bucket')
                 
-                # Convert to base64
-                audio_file.seek(0)  # Reset file pointer
-                audio_data = audio_file.read()
-                audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-                print(f"✓ Audio converted to base64 (size: {len(audio_base64)} characters)")
+                if upload_result['success']:
+                    audio_url = upload_result['url']
+                    audio_filename = upload_result['filename']
+                    print(f"✓ Audio uploaded to Supabase Storage: {audio_url}")
+                else:
+                    print(f"✗ Failed to upload audio to Supabase Storage: {upload_result['error']}")
+                    # Fallback to local storage for backwards compatibility
+                    audio_file.seek(0)  # Reset file pointer
+                    audio_filename = original_audio_filename
+                    audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
+                    audio_file.save(audio_path)
+                    print(f"✓ Audio saved locally as fallback: {audio_path}")
         
         # Create issue data
         issue_data = {
@@ -227,8 +243,8 @@ def create_issue():
             'description_mode': description_mode,
             'image_filename': image_filename,
             'audio_filename': audio_filename,
-            'image_base64': image_base64,
-            'audio_base64': audio_base64,
+            'image_url': image_url,  # Supabase Storage URL
+            'audio_url': audio_url,  # Supabase Storage URL  
             'vouch_priority': 1,  # Initialize vouch priority to 1
             'status': 'Open',
             'created_at': datetime.now().isoformat()
@@ -281,7 +297,7 @@ def get_issues():
         if supabase:
             print("🔍 Fetching issues from Supabase database...")
             # Exclude heavy base64 image data for faster loading
-            select_fields = 'id,title,description,latitude,longitude,category,priority,vouch_priority,status,created_at,image_filename,audio_filename,description_mode'
+            select_fields = 'id,title,description,latitude,longitude,category,priority,vouch_priority,status,created_at,image_filename,audio_filename,image_url,audio_url,description_mode'
             result = supabase.table('issues').select(select_fields).order('created_at', desc=True).execute()
             
             if result.data:
@@ -546,6 +562,50 @@ def generate_jwt_token(user_data):
         'exp': datetime.utcnow() + timedelta(days=30)  # Token expires in 30 days
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def upload_to_supabase_storage(file_data, filename, bucket_name='Civic-Image-Bucket'):
+    """
+    Upload file to Supabase Storage and return the public URL
+    
+    Args:
+        file_data: Binary file data or file-like object
+        filename: Name for the file in storage
+        bucket_name: Supabase storage bucket name
+    
+    Returns:
+        dict: {'success': True, 'url': 'public_url'} or {'success': False, 'error': 'message'}
+    """
+    if not supabase:
+        return {'success': False, 'error': 'Supabase client not initialized'}
+    
+    try:
+        # Generate unique filename to prevent conflicts
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        
+        # Convert file_data to bytes if it's a file-like object
+        if hasattr(file_data, 'read'):
+            file_bytes = file_data.read()
+        else:
+            file_bytes = file_data
+            
+        # Upload to Supabase Storage
+        response = supabase.storage.from_(bucket_name).upload(
+            path=unique_filename,
+            file=file_bytes,
+            file_options={"cache-control": "3600", "upsert": "false"}
+        )
+        
+        if response:
+            # Get public URL
+            public_url = supabase.storage.from_(bucket_name).get_public_url(unique_filename)
+            print(f"✓ File uploaded successfully: {public_url}")
+            return {'success': True, 'url': public_url, 'filename': unique_filename}
+        else:
+            return {'success': False, 'error': 'Upload failed - no response from storage'}
+            
+    except Exception as e:
+        print(f"✗ Error uploading to Supabase Storage: {e}")
+        return {'success': False, 'error': str(e)}
 
 def verify_jwt_token(token):
     """Verify JWT token"""

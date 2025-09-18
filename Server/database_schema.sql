@@ -27,20 +27,22 @@ CREATE TABLE IF NOT EXISTS issues (
     description_mode TEXT,
     image_filename TEXT,
     audio_filename TEXT,
-    image_base64 TEXT,
-    audio_base64 TEXT,
+    image_url TEXT, -- Supabase Storage URL for images
+    audio_url TEXT, -- Supabase Storage URL for audio files
     status TEXT DEFAULT 'Open',
     vouch_priority INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create storage bucket for file uploads (run this in Supabase dashboard or via API)
+-- Create storage buckets for file uploads (run this in Supabase dashboard or via API)
 -- This needs to be done through the Supabase dashboard:
 -- 1. Go to Storage in your Supabase dashboard
--- 2. Create a new bucket named 'uploads'
--- 3. Set it to public if you want direct access to files
--- 4. Configure policies as needed
+-- 2. Create new buckets:
+--    - 'Civic-Image-Bucket' for image files
+--    - 'Civic-Audio-Bucket' for audio files
+-- 3. Set them to public if you want direct access to files
+-- 4. Configure RLS policies as needed for security
 
 -- Add RLS (Row Level Security) policies if needed
 -- ALTER TABLE issues ENABLE ROW LEVEL SECURITY;
