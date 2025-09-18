@@ -72,8 +72,9 @@ The frontend automatically supports the new URL-based system:
 - No changes required to React components
 
 ### Requirements
-Added to `requirements.txt`:
-- `storage3==0.7.4` - Supabase Storage Python client
+The following packages are required and will be automatically installed:
+- `supabase==1.2.0` - Supabase Python client (includes storage3 dependency)
+- Storage3 will be automatically installed as a dependency of Supabase
 
 ## Benefits
 
