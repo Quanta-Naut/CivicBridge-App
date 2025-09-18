@@ -385,6 +385,118 @@ def get_all_issues_with_vouch_details():
         print(f"❌ Error fetching detailed vouch data: {e}")
         return jsonify({'error': str(e), 'issues': [], 'count': 0}), 500
 
+@app.route('/api/issues/nearby', methods=['GET'])
+def get_nearby_issues():
+    """Get issues excluding those reported by the current user (for homepage)"""
+    log_api_access('/api/issues/nearby', 'GET', request.remote_addr)
+    
+    try:
+        # Extract current user information from Firebase token
+        current_user_id = None
+        auth_header = request.headers.get('Authorization')
+        
+        if auth_header and auth_header.startswith('Bearer '):
+            try:
+                token = auth_header.split(' ')[1]
+                auth_data = verify_auth_token(token)
+                if auth_data:
+                    current_user_id = auth_data['user_id']
+                    print(f"✓ Authenticated user for nearby issues: {current_user_id} (via {auth_data['type']})")
+            except Exception as auth_error:
+                print(f"⚠️ Authentication failed for nearby issues (will show all): {auth_error}")
+        
+        if supabase:
+            print("🔍 Fetching nearby issues (excluding user's own issues)...")
+            
+            # Try to use the issue_vouch_counts view first
+            try:
+                result = supabase.table('issue_vouch_counts').select('*').order('created_at', desc=True).execute()
+                
+                if result.data:
+                    # Filter out current user's issues if user is authenticated
+                    filtered_issues = result.data
+                    if current_user_id:
+                        # Filter out issues reported by current user
+                        filtered_issues = [issue for issue in result.data if issue.get('user_id') != current_user_id]
+                        print(f"✓ Filtered out current user's issues. Showing {len(filtered_issues)} of {len(result.data)} issues")
+                    
+                    # Add compatible fields for frontend
+                    for issue in filtered_issues:
+                        issue['vouch_count'] = issue.get('vouch_count', issue.get('vouch_priority', 0))
+                        # Add missing media fields if not present
+                        if 'image_filename' not in issue:
+                            issue['image_filename'] = None
+                        if 'audio_filename' not in issue:
+                            issue['audio_filename'] = None
+                        if 'image_url' not in issue:
+                            issue['image_url'] = None
+                        if 'audio_url' not in issue:
+                            issue['audio_url'] = None
+                        if 'description_mode' not in issue:
+                            issue['description_mode'] = None
+                    
+                    response_data = {
+                        'issues': filtered_issues, 
+                        'source': 'issue_vouch_counts_view_filtered', 
+                        'count': len(filtered_issues),
+                        'excluded_user_issues': current_user_id is not None,
+                        'user_id': current_user_id
+                    }
+                    print(f"✓ Found {len(filtered_issues)} nearby issues (user's own issues excluded)")
+                    log_response(response_data, 200)
+                    return jsonify(response_data)
+                    
+            except Exception as view_error:
+                print(f"⚠️ issue_vouch_counts view not available: {view_error}")
+                # Fallback to regular issues table
+            
+            # Fallback: use regular issues table with user filtering
+            select_fields = 'id,title,description,latitude,longitude,category,priority,vouch_priority,status,created_at,image_filename,audio_filename,image_url,audio_url,description_mode,user_id'
+            
+            if current_user_id:
+                # Exclude current user's issues
+                result = supabase.table('issues').select(select_fields).neq('user_id', current_user_id).order('created_at', desc=True).execute()
+            else:
+                # Show all issues if no authenticated user
+                result = supabase.table('issues').select(select_fields).order('created_at', desc=True).execute()
+            
+            if result.data:
+                # Add vouch_count field using the existing vouch_priority for consistency
+                for issue in result.data:
+                    issue['vouch_count'] = issue.get('vouch_priority', 0)
+                
+                response_data = {
+                    'issues': result.data, 
+                    'source': 'database_filtered', 
+                    'count': len(result.data),
+                    'excluded_user_issues': current_user_id is not None,
+                    'user_id': current_user_id
+                }
+                print(f"✓ Found {len(result.data)} nearby issues from database (filtered)")
+                log_response(response_data, 200)
+                return jsonify(response_data)
+        
+        # Fallback to memory storage
+        print("💾 Using memory storage fallback for nearby issues...")
+        memory_issues = issues
+        
+        # Note: Memory storage might not have user_id filtering capability
+        response_data = {
+            'issues': memory_issues, 
+            'source': 'memory', 
+            'count': len(memory_issues),
+            'excluded_user_issues': False,
+            'user_id': None
+        }
+        log_response(response_data, 200)
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print(f"❌ Error fetching nearby issues: {e}")
+        error_response = {'issues': [], 'source': 'error', 'error': str(e), 'count': 0}
+        log_response(error_response, 200)
+        return jsonify(error_response)
+
 @app.route('/api/issues/<int:issue_id>/vouch', methods=['POST'])
 def vouch_issue(issue_id):
     """Increment vouch_priority of an issue by +1 and track user vouch"""
