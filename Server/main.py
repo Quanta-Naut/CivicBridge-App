@@ -1596,15 +1596,31 @@ def update_profile():
     log_api_access('/auth/update-profile', 'PUT', request.remote_addr)
     
     try:
+        # Check authentication
         auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
+        user_id = None
+        
+        print(f"🔍 UPDATE PROFILE DEBUG: Auth header present: {bool(auth_header)}")
+        
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            print(f"🔍 UPDATE PROFILE DEBUG: Token extracted (length: {len(token)})")
+            
+            auth_data = verify_auth_token(token)
+            print(f"🔍 UPDATE PROFILE DEBUG: Auth verification result: {bool(auth_data)}")
+            
+            if auth_data:
+                user_id = auth_data['user_id']
+                print(f"✓ UPDATE PROFILE: Authenticated user ID: {user_id} (via {auth_data['type']})")
+                print(f"✓ UPDATE PROFILE: User details - mobile: {auth_data.get('mobile_number', 'N/A')}")
+            else:
+                print("❌ UPDATE PROFILE: Invalid token provided")
+                return jsonify({'error': 'Invalid or expired token'}), 401
+        else:
+            print("❌ UPDATE PROFILE: No authentication provided")
             return jsonify({'error': 'Authorization token required'}), 401
         
-        token = auth_header.split(' ')[1]
-        payload = verify_auth_token(token)
-        
-        if not payload:
-            return jsonify({'error': 'Invalid or expired token'}), 401
+        print(f"🔍 UPDATE PROFILE DEBUG: Final user_id to be updated: {user_id} (type: {type(user_id)})")
         
         data = request.get_json()
         full_name = data.get('full_name')
@@ -1624,7 +1640,7 @@ def update_profile():
         if supabase:
             # Check if civic_id already exists for another user
             if civic_id:
-                existing = supabase.table('users').select('id').eq('civic_id', civic_id).neq('id', payload['user_id']).execute()
+                existing = supabase.table('users').select('id').eq('civic_id', civic_id).neq('id', user_id).execute()
                 if existing.data:
                     # Generate a new civic_id if conflict
                     civic_id = generate_civic_id()
@@ -1638,7 +1654,7 @@ def update_profile():
                 'updated_at': datetime.now().isoformat()
             }
             
-            result = supabase.table('users').update(update_data).eq('id', payload['user_id']).execute()
+            result = supabase.table('users').update(update_data).eq('id', user_id).execute()
             user = result.data[0] if result.data else None
             
             if not user:
@@ -1646,8 +1662,8 @@ def update_profile():
         else:
             # Fallback for development
             user = {
-                'id': payload['user_id'],
-                'mobile_number': payload['mobile_number'],
+                'id': user_id,
+                'mobile_number': auth_data.get('mobile_number'),
                 'civic_id': civic_id or generate_civic_id(),
                 'full_name': full_name,
                 'email': email,
@@ -1667,7 +1683,7 @@ def update_profile():
         })
     
     except Exception as e:
-        print(f"Error updating profile: {e}")
+        print(f"❌ UPDATE PROFILE ERROR: {e}")
         return jsonify({'error': 'Failed to update profile'}), 500
 
 if __name__ == '__main__':
