@@ -1164,18 +1164,11 @@ def upload_to_supabase_storage(file_data, filename, bucket_name='Civic-Image-Buc
 def verify_jwt_token(token):
     """Verify JWT token"""
     try:
-        print(f"🔍 VERIFY JWT: Attempting to decode token")
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        print(f"✓ VERIFY JWT: Successfully decoded token for user_id: {payload.get('user_id')}")
         return payload
     except jwt.ExpiredSignatureError:
-        print("❌ VERIFY JWT: Token has expired")
         return None
-    except jwt.InvalidTokenError as e:
-        print(f"❌ VERIFY JWT: Invalid token: {e}")
-        return None
-    except Exception as e:
-        print(f"❌ VERIFY JWT: Unexpected error: {e}")
+    except jwt.InvalidTokenError:
         return None
 
 def verify_firebase_token(id_token):
@@ -1236,25 +1229,15 @@ def sync_firebase_user_to_database(firebase_result):
                 'updated_at': datetime.now().isoformat()
             }
             
-            try:
-                new_user = supabase.table('users').insert(user_data).execute()
-                print(f"🔍 SYNC FIREBASE: User creation result: {new_user}")
-                
-                if new_user.data and len(new_user.data) > 0:
-                    user = new_user.data[0]
-                    print(f"✓ New Firebase user created in database: {user['id']} (UID: {firebase_uid})")
-                    return user
-                else:
-                    print(f"❌ Failed to create Firebase user in database - no data returned")
-                    return None
-                    
-            except Exception as create_error:
-                print(f"❌ Error creating Firebase user: {create_error}")
-                # Return a fallback user object for JWT generation
-                fallback_user = user_data.copy()
-                fallback_user['id'] = hash(firebase_uid) % 1000000  # Generate a consistent ID from firebase_uid
-                print(f"⚠️ Using fallback Firebase user: {fallback_user}")
-                return fallback_user
+            new_user = supabase.table('users').insert(user_data).execute()
+            
+            if new_user.data and len(new_user.data) > 0:
+                user = new_user.data[0]
+                print(f"✓ New Firebase user created in database: {user['id']} (UID: {firebase_uid})")
+                return user
+            else:
+                print(f"✗ Failed to create Firebase user in database")
+                return None
                 
     except Exception as e:
         print(f"Error syncing Firebase user to database: {e}")
@@ -1283,15 +1266,11 @@ def create_supabase_client_with_firebase_jwt(firebase_token):
 def verify_auth_token(token):
     """Verify authentication token (supports both JWT and Firebase tokens)"""
     if not token:
-        print("❌ VERIFY AUTH TOKEN: No token provided")
         return None
-
-    print(f"🔍 VERIFY AUTH TOKEN: Token length: {len(token)}")
 
     # First try JWT token
     jwt_payload = verify_jwt_token(token)
     if jwt_payload:
-        print(f"✓ VERIFY AUTH TOKEN: Valid JWT token for user_id: {jwt_payload.get('user_id')}")
         return {
             'type': 'jwt',
             'user_id': jwt_payload.get('user_id'),
@@ -1299,18 +1278,14 @@ def verify_auth_token(token):
             'firebase_uid': jwt_payload.get('firebase_uid')
         }
 
-    print("🔍 VERIFY AUTH TOKEN: JWT verification failed, trying Firebase")
-
     # If JWT fails, try Firebase token
     if FIREBASE_AVAILABLE:
         firebase_result = verify_firebase_token(token)
         if firebase_result['success']:
-            print(f"✓ VERIFY AUTH TOKEN: Valid Firebase token for UID: {firebase_result['uid']}")
             # Sync Firebase user to database (creates if doesn't exist)
             user = sync_firebase_user_to_database(firebase_result)
             
             if user:
-                print(f"✓ VERIFY AUTH TOKEN: Firebase user synced: {user['id']}")
                 return {
                     'type': 'firebase',
                     'user_id': user['id'],
@@ -1320,13 +1295,8 @@ def verify_auth_token(token):
                     'civic_id': user.get('civic_id')
                 }
             else:
-                print("❌ VERIFY AUTH TOKEN: Failed to sync Firebase user to database")
-        else:
-            print(f"❌ VERIFY AUTH TOKEN: Firebase verification failed: {firebase_result.get('error', 'Unknown error')}")
-    else:
-        print("⚠️ VERIFY AUTH TOKEN: Firebase not available")
+                print(f"Could not sync Firebase user to database")
 
-    print("❌ VERIFY AUTH TOKEN: All authentication methods failed")
     return None
 
 def send_otp_sms(mobile_number, otp):
@@ -1425,47 +1395,23 @@ def verify_otp():
         
         if supabase:
             if auth_type == 'register':
-                print(f"🔍 VERIFY OTP: Creating new user for mobile: {mobile_number}")
-                
                 # Create new user with minimal data
                 user_insert = {
                     'mobile_number': mobile_number,
                     'civic_id': generate_civic_id(),
-                    'created_at': datetime.now().isoformat(),
-                    'updated_at': datetime.now().isoformat()
+                    'created_at': datetime.now().isoformat()
                 }
                 
-                try:
-                    result = supabase.table('users').insert(user_insert).execute()
-                    print(f"🔍 VERIFY OTP: User creation result: {result}")
-                    
-                    if result.data:
-                        user = result.data[0]
-                        print(f"✓ VERIFY OTP: New user created with ID: {user['id']}")
-                    else:
-                        print(f"❌ VERIFY OTP: User creation returned no data, using fallback")
-                        # Generate a fallback user with ID
-                        user = user_insert.copy()
-                        user['id'] = len([u for u in otp_store.keys() if mobile_number in u]) + 1  # Simple ID generation
-                        
-                except Exception as create_error:
-                    print(f"❌ VERIFY OTP: Error creating user: {create_error}")
-                    # Create fallback user
-                    user = user_insert.copy()
-                    user['id'] = len([u for u in otp_store.keys() if mobile_number in u]) + 1
-                    print(f"⚠️ VERIFY OTP: Using fallback user creation: {user}")
+                result = supabase.table('users').insert(user_insert).execute()
+                user = result.data[0] if result.data else user_insert
                 
             else:  # login
-                print(f"🔍 VERIFY OTP: Looking up existing user for mobile: {mobile_number}")
                 # Get existing user
                 result = supabase.table('users').select('*').eq('mobile_number', mobile_number).execute()
                 user = result.data[0] if result.data else None
                 
                 if not user:
-                    print(f"❌ VERIFY OTP: User not found for mobile: {mobile_number}")
-                    return jsonify({'error': 'User not found. Please register first.'}), 404
-                else:
-                    print(f"✓ VERIFY OTP: Found existing user: {user['id']}")
+                    return jsonify({'error': 'User not found'}), 404
         else:
             # Fallback for development without Supabase
             user = {
@@ -1650,106 +1596,38 @@ def update_profile():
     log_api_access('/auth/update-profile', 'PUT', request.remote_addr)
     
     try:
-        # Check authentication
         auth_header = request.headers.get('Authorization')
-        user_id = None
-        
-        print(f"🔍 UPDATE PROFILE DEBUG: Auth header present: {bool(auth_header)}")
-        
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
-            print(f"🔍 UPDATE PROFILE DEBUG: Token extracted (length: {len(token)})")
-            
-            auth_data = verify_auth_token(token)
-            print(f"🔍 UPDATE PROFILE DEBUG: Auth verification result: {bool(auth_data)}")
-            
-            if auth_data:
-                user_id = auth_data['user_id']
-                print(f"✓ UPDATE PROFILE: Authenticated user ID: {user_id} (via {auth_data['type']})")
-                print(f"✓ UPDATE PROFILE: User details - mobile: {auth_data.get('mobile_number', 'N/A')}")
-            else:
-                print("❌ UPDATE PROFILE: Invalid token provided")
-                return jsonify({'error': 'Invalid or expired token'}), 401
-        else:
-            print("❌ UPDATE PROFILE: No authentication provided")
+        if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({'error': 'Authorization token required'}), 401
         
-        print(f"🔍 UPDATE PROFILE DEBUG: Final user_id to be updated: {user_id} (type: {type(user_id)})")
+        token = auth_header.split(' ')[1]
+        payload = verify_auth_token(token)
+        
+        if not payload:
+            return jsonify({'error': 'Invalid or expired token'}), 401
         
         data = request.get_json()
-        print(f"🔍 UPDATE PROFILE DEBUG: Received data: {data}")
-        
         full_name = data.get('full_name')
         email = data.get('email')
         address = data.get('address')
         civic_id = data.get('civic_id')
         
-        print(f"🔍 UPDATE PROFILE DEBUG: Extracted fields - full_name: '{full_name}', email: '{email}', address: '{address}', civic_id: '{civic_id}'")
-        
         if not all([full_name, email, address]):
-            print(f"❌ UPDATE PROFILE: Missing required fields - full_name: {bool(full_name)}, email: {bool(email)}, address: {bool(address)}")
             return jsonify({'error': 'Full name, email, and address are required'}), 400
         
         # Validate email
         import re
         email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
         if not re.match(email_regex, email):
-            print(f"❌ UPDATE PROFILE: Invalid email format: {email}")
             return jsonify({'error': 'Invalid email format'}), 400
         
-        print(f"✓ UPDATE PROFILE: Validation passed, proceeding with update")
-        
         if supabase:
-            print(f"🔍 UPDATE PROFILE: Using Supabase for database update")
-            
-            # First, check if the user exists
-            existing_user = supabase.table('users').select('*').eq('id', user_id).execute()
-            print(f"🔍 UPDATE PROFILE: Existing user check result: {existing_user.data}")
-            
-            if not existing_user.data:
-                print(f"⚠️ UPDATE PROFILE: User {user_id} not found in database, attempting to create")
-                
-                # Try to create the user with basic info
-                try:
-                    create_user_data = {
-                        'id': user_id,
-                        'mobile_number': auth_data.get('mobile_number', ''),
-                        'civic_id': generate_civic_id(),
-                        'created_at': datetime.now().isoformat(),
-                        'updated_at': datetime.now().isoformat()
-                    }
-                    
-                    create_result = supabase.table('users').insert(create_user_data).execute()
-                    print(f"✓ UPDATE PROFILE: User creation attempt result: {create_result}")
-                    
-                    if not create_result.data:
-                        print(f"❌ UPDATE PROFILE: Failed to create user, trying without ID")
-                        # Try without forcing ID
-                        create_user_data_no_id = create_user_data.copy()
-                        del create_user_data_no_id['id']
-                        create_result = supabase.table('users').insert(create_user_data_no_id).execute()
-                        print(f"✓ UPDATE PROFILE: User creation (auto ID) result: {create_result}")
-                        
-                        if create_result.data:
-                            # Update user_id to the newly created user's ID
-                            new_user_id = create_result.data[0]['id']
-                            print(f"⚠️ UPDATE PROFILE: Created user with new ID {new_user_id}, updating user_id")
-                            user_id = new_user_id
-                        else:
-                            return jsonify({'error': 'Failed to create user account'}), 500
-                            
-                except Exception as create_error:
-                    print(f"❌ UPDATE PROFILE: Error creating user: {create_error}")
-                    return jsonify({'error': 'Failed to create user account'}), 500
-            
             # Check if civic_id already exists for another user
             if civic_id:
-                print(f"🔍 UPDATE PROFILE: Checking civic_id conflict for: {civic_id}")
-                existing = supabase.table('users').select('id').eq('civic_id', civic_id).neq('id', user_id).execute()
+                existing = supabase.table('users').select('id').eq('civic_id', civic_id).neq('id', payload['user_id']).execute()
                 if existing.data:
-                    print(f"⚠️ UPDATE PROFILE: Civic ID conflict detected, generating new one")
+                    # Generate a new civic_id if conflict
                     civic_id = generate_civic_id()
-                    print(f"✓ UPDATE PROFILE: New civic_id generated: {civic_id}")
             
             # Update user profile
             update_data = {
@@ -1760,40 +1638,22 @@ def update_profile():
                 'updated_at': datetime.now().isoformat()
             }
             
-            print(f"🔍 UPDATE PROFILE: Update data prepared: {update_data}")
-            print(f"🔍 UPDATE PROFILE: Updating user with ID: {user_id}")
+            result = supabase.table('users').update(update_data).eq('id', payload['user_id']).execute()
+            user = result.data[0] if result.data else None
             
-            try:
-                result = supabase.table('users').update(update_data).eq('id', user_id).execute()
-                print(f"🔍 UPDATE PROFILE: Supabase update result: {result}")
-                print(f"🔍 UPDATE PROFILE: Result data: {result.data}")
-                
-                user = result.data[0] if result.data else None
-                print(f"🔍 UPDATE PROFILE: Extracted user: {user}")
-                
-                if not user:
-                    print(f"❌ UPDATE PROFILE: No user data returned from update")
-                    return jsonify({'error': 'Failed to update user'}), 500
-                    
-                print(f"✓ UPDATE PROFILE: User updated successfully in database")
-                
-            except Exception as db_error:
-                print(f"❌ UPDATE PROFILE: Database error during update: {db_error}")
-                return jsonify({'error': 'Database error during update'}), 500
-                
+            if not user:
+                return jsonify({'error': 'Failed to update user'}), 500
         else:
-            print(f"⚠️ UPDATE PROFILE: Supabase not available, using fallback")
             # Fallback for development
             user = {
-                'id': user_id,
-                'mobile_number': auth_data.get('mobile_number'),
+                'id': payload['user_id'],
+                'mobile_number': payload['mobile_number'],
                 'civic_id': civic_id or generate_civic_id(),
                 'full_name': full_name,
                 'email': email,
                 'address': address
             }
         
-        print(f"✓ UPDATE PROFILE: Preparing success response")
         return jsonify({
             'message': 'Profile updated successfully',
             'user': {
@@ -1807,7 +1667,7 @@ def update_profile():
         })
     
     except Exception as e:
-        print(f"❌ UPDATE PROFILE ERROR: {e}")
+        print(f"Error updating profile: {e}")
         return jsonify({'error': 'Failed to update profile'}), 500
 
 if __name__ == '__main__':
