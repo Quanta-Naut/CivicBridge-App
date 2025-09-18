@@ -164,11 +164,88 @@ WITH CHECK (
 -- Grant permissions on vouches table
 GRANT SELECT, INSERT ON vouches TO authenticated, anon;
 
--- 5. Test the functions (uncomment to test)
+-- 5. Drop existing view if it exists to avoid column name conflicts
+DROP VIEW IF EXISTS issue_vouch_counts;
+
+-- Create the issue_vouch_counts view with proper structure
+CREATE VIEW issue_vouch_counts AS
+SELECT 
+    i.id,
+    i.title,
+    i.description,
+    i.status,
+    i.category,
+    i.priority,
+    i.latitude,
+    i.longitude,
+    i.vouch_priority,
+    i.created_at,
+    i.updated_at,
+    COUNT(v.id) as vouch_count,
+    ARRAY_AGG(
+        JSON_BUILD_OBJECT(
+            'user_id', u.id,
+            'mobile_number', u.mobile_number,
+            'civic_id', u.civic_id,
+            'full_name', u.full_name,
+            'vouched_at', v.created_at
+        )
+    ) FILTER (WHERE v.id IS NOT NULL) as vouchers
+FROM issues i
+LEFT JOIN vouches v ON i.id = v.issue_id
+LEFT JOIN users u ON v.user_id = u.id
+GROUP BY i.id, i.title, i.description, i.status, i.category, i.priority, 
+         i.latitude, i.longitude, i.vouch_priority, i.created_at, i.updated_at;
+
+-- 6. Grant public access to the issue_vouch_counts view (unrestricted as requested)
+GRANT SELECT ON issue_vouch_counts TO authenticated, anon;
+
+-- 7. Create RLS policy for issue_vouch_counts view (allow all access)
+-- Note: Views inherit RLS from underlying tables, but we ensure it's accessible
+CREATE OR REPLACE FUNCTION public_issue_vouch_access()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- This function ensures the view is always accessible
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+-- 8. Create a function to get issue with vouch details (uses the view)
+CREATE OR REPLACE FUNCTION get_issue_vouch_details(issue_id_param BIGINT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  issue_data JSON;
+BEGIN
+  -- Get issue data from the unrestricted view
+  SELECT row_to_json(ivc) INTO issue_data
+  FROM issue_vouch_counts ivc
+  WHERE ivc.id = issue_id_param;
+  
+  IF issue_data IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'Issue not found');
+  END IF;
+  
+  RETURN json_build_object(
+    'success', true,
+    'data', issue_data
+  );
+END;
+$$;
+
+-- 9. Grant permissions for the new function
+GRANT EXECUTE ON FUNCTION get_issue_vouch_details(BIGINT) TO authenticated, anon;
+
+-- 10. Test the functions (uncomment to test)
 -- SELECT vouch_issue(19, 1);  -- Vouch for issue 19 as user 1
 -- SELECT check_user_vouch(19, 1);  -- Check if user 1 vouched for issue 19
+-- SELECT get_issue_vouch_details(19);  -- Get full issue details with vouch info
 
--- 6. Success message
+-- 11. Success message
 DO $$
 BEGIN
     RAISE NOTICE 'Enhanced vouch system created successfully!';

@@ -296,7 +296,37 @@ def get_issues():
     try:
         if supabase:
             print("🔍 Fetching issues from Supabase database...")
-            # Exclude heavy base64 image data for faster loading
+            
+            # Try to use the issue_vouch_counts view for unrestricted access with accurate vouch data
+            try:
+                vouch_result = supabase.table('issue_vouch_counts').select('*').order('created_at', desc=True).execute()
+                
+                if vouch_result.data:
+                    # Add compatible fields for frontend
+                    for issue in vouch_result.data:
+                        issue['vouch_count'] = issue.get('vouch_count', issue.get('vouch_priority', 0))
+                        # Add missing media fields if not present
+                        if 'image_filename' not in issue:
+                            issue['image_filename'] = None
+                        if 'audio_filename' not in issue:
+                            issue['audio_filename'] = None
+                        if 'image_url' not in issue:
+                            issue['image_url'] = None
+                        if 'audio_url' not in issue:
+                            issue['audio_url'] = None
+                        if 'description_mode' not in issue:
+                            issue['description_mode'] = None
+                    
+                    response_data = {'issues': vouch_result.data, 'source': 'issue_vouch_counts_view', 'count': len(vouch_result.data)}
+                    print(f"✓ Found {len(vouch_result.data)} issues with vouch data from unrestricted view")
+                    log_response(response_data, 200)
+                    return jsonify(response_data)
+                    
+            except Exception as view_error:
+                print(f"⚠️ issue_vouch_counts view not available: {view_error}")
+                # Fallback to regular issues table
+            
+            # Fallback: use regular issues table
             select_fields = 'id,title,description,latitude,longitude,category,priority,vouch_priority,status,created_at,image_filename,audio_filename,image_url,audio_url,description_mode'
             result = supabase.table('issues').select(select_fields).order('created_at', desc=True).execute()
             
@@ -306,7 +336,7 @@ def get_issues():
                     issue['vouch_count'] = issue.get('vouch_priority', 0)
                 
                 response_data = {'issues': result.data, 'source': 'database', 'count': len(result.data)}
-                print(f"✓ Found {len(result.data)} issues in database (images excluded for performance)")
+                print(f"✓ Found {len(result.data)} issues in database (fallback mode)")
                 log_response(response_data, 200)
                 return jsonify(response_data)
         
@@ -321,6 +351,39 @@ def get_issues():
         error_response = {'issues': issues, 'source': 'memory', 'error': str(e), 'count': len(issues)}
         log_response(error_response, 200)
         return jsonify(error_response)
+
+@app.route('/api/issues/vouch-details', methods=['GET'])
+def get_all_issues_with_vouch_details():
+    """Get all issues with detailed vouch information using unrestricted view"""
+    log_api_access('/api/issues/vouch-details', 'GET', request.remote_addr)
+    
+    try:
+        if supabase:
+            print("🔍 Fetching detailed issue vouch data from unrestricted view...")
+            
+            # Use the issue_vouch_counts view for complete vouch details
+            result = supabase.table('issue_vouch_counts').select('*').order('vouch_count', desc=True).execute()
+            
+            if result.data:
+                response_data = {
+                    'issues': result.data, 
+                    'source': 'issue_vouch_counts_view', 
+                    'count': len(result.data),
+                    'includes_vouch_details': True,
+                    'includes_voucher_list': True
+                }
+                print(f"✓ Found {len(result.data)} issues with complete vouch details")
+                log_response(response_data, 200)
+                return jsonify(response_data)
+            else:
+                return jsonify({'issues': [], 'source': 'issue_vouch_counts_view', 'count': 0})
+        
+        # Fallback to memory storage
+        return jsonify({'issues': issues, 'source': 'memory', 'count': len(issues)})
+        
+    except Exception as e:
+        print(f"❌ Error fetching detailed vouch data: {e}")
+        return jsonify({'error': str(e), 'issues': [], 'count': 0}), 500
 
 @app.route('/api/issues/<int:issue_id>/vouch', methods=['POST'])
 def vouch_issue(issue_id):
