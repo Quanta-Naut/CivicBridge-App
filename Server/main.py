@@ -324,33 +324,59 @@ def get_issues():
 
 @app.route('/api/issues/<int:issue_id>/vouch', methods=['POST'])
 def vouch_issue(issue_id):
-    """Increment vouch_priority of an issue by +1"""
+    """Increment vouch_priority of an issue by +1 and track user vouch"""
     log_api_access(f'/api/issues/{issue_id}/vouch', 'POST', request.remote_addr)
     
     try:
+        # Get user ID from authentication if available
+        auth_header = request.headers.get('Authorization')
+        user_id = None
+        
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            auth_data = verify_auth_token(token)
+            if auth_data:
+                user_id = auth_data['user_id']
+                print(f"✓ Authenticated user vouching: {user_id} (via {auth_data['type']})")
+            else:
+                print("⚠️ Invalid token, proceeding as anonymous vouch")
+        else:
+            print("ℹ️ No authentication provided, anonymous vouch")
+        
         if supabase:
-            # Use the database function to handle vouching (bypasses RLS issues)
+            # Use the enhanced database function to handle vouching with user tracking
             try:
-                result = supabase.rpc('vouch_issue', {'issue_id_param': issue_id}).execute()
+                # Call the vouch function with user_id parameter
+                params = {
+                    'issue_id_param': issue_id,
+                    'user_id_param': user_id
+                }
+                result = supabase.rpc('vouch_issue', params).execute()
                 
                 if result.data:
                     vouch_result = result.data
                     if vouch_result.get('success'):
-                        print(f"✓ Issue {issue_id} vouch_priority updated to {vouch_result['vouch_count']}")
+                        print(f"✓ Issue {issue_id} vouched successfully - count: {vouch_result['vouch_count']}, user: {vouch_result.get('user_id', 'anonymous')}")
                         response_data = {
                             'message': 'Issue vouched successfully',
                             'issue_id': vouch_result['issue_id'],
                             'vouch_count': vouch_result['vouch_count'],
                             'vouch_priority': vouch_result['vouch_priority'],
-                            'user_vouched': True,
+                            'user_vouched': vouch_result.get('user_vouched', False),
+                            'user_id': vouch_result.get('user_id'),
                             'source': 'database'
                         }
                         log_response(response_data, 200)
                         return jsonify(response_data), 200
                     else:
-                        error_response = {'error': vouch_result.get('error', 'Vouch failed')}
-                        log_response(error_response, 404 if 'not found' in str(vouch_result.get('error', '')).lower() else 500)
-                        return jsonify(error_response), 404 if 'not found' in str(vouch_result.get('error', '')).lower() else 500
+                        error_msg = vouch_result.get('error', 'Vouch failed')
+                        status_code = 409 if vouch_result.get('already_vouched') else (404 if 'not found' in error_msg.lower() else 500)
+                        error_response = {
+                            'error': error_msg,
+                            'already_vouched': vouch_result.get('already_vouched', False)
+                        }
+                        log_response(error_response, status_code)
+                        return jsonify(error_response), status_code
                 else:
                     error_response = {'error': 'No response from vouch function'}
                     log_response(error_response, 500)
@@ -358,7 +384,7 @@ def vouch_issue(issue_id):
                     
             except Exception as db_error:
                 print(f"Database vouch function error: {db_error}")
-                # Fallback to direct update if function doesn't exist
+                # Fallback to simple vouch_priority increment (legacy support)
                 result = supabase.table('issues').select('vouch_priority').eq('id', issue_id).execute()
                 
                 if not result.data:
@@ -367,20 +393,21 @@ def vouch_issue(issue_id):
                 current_vouch = result.data[0].get('vouch_priority', 0)
                 new_vouch = current_vouch + 1
                 
-                # Try direct update
+                # Try direct update (fallback)
                 update_result = supabase.table('issues').update({
                     'vouch_priority': new_vouch
                 }).eq('id', issue_id).execute()
                 
                 if update_result.data:
-                    print(f"✓ Issue {issue_id} vouch_priority updated to {new_vouch} (fallback)")
+                    print(f"✓ Issue {issue_id} vouch_priority updated to {new_vouch} (legacy fallback)")
                     response_data = {
-                        'message': 'Issue vouched successfully',
+                        'message': 'Issue vouched successfully (legacy mode)',
                         'issue_id': issue_id,
                         'vouch_count': new_vouch,
                         'vouch_priority': new_vouch,
-                        'user_vouched': True,
-                        'source': 'database'
+                        'user_vouched': False,
+                        'source': 'database',
+                        'warning': 'Using legacy vouch mode - user tracking not available'
                     }
                     log_response(response_data, 200)
                     return jsonify(response_data), 200
@@ -411,25 +438,80 @@ def vouch_issue(issue_id):
 
 @app.route('/api/issues/<int:issue_id>/vouch', methods=['GET'])
 def get_vouch_details(issue_id):
-    """Get the current vouch_priority count for an issue"""
+    """Get the current vouch count and user vouch status for an issue"""
     log_api_access(f'/api/issues/{issue_id}/vouch', 'GET', request.remote_addr)
     try:
+        # Get user ID from authentication if available
+        auth_header = request.headers.get('Authorization')
+        user_id = None
+        
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            auth_data = verify_auth_token(token)
+            if auth_data:
+                user_id = auth_data['user_id']
+        
         if supabase:
-            result = supabase.table('issues').select('id, title, vouch_priority').eq('id', issue_id).execute()
-            
-            if result.data:
-                issue_data = result.data[0]
-                vouch_count = issue_data.get('vouch_priority', 0)
-                return jsonify({
-                    'issue_id': issue_data['id'],
-                    'title': issue_data['title'],
-                    'vouch_count': vouch_count,
-                    'vouch_priority': vouch_count,
-                    'user_vouched': False,  # We don't track individual user vouches in simple mode
-                    'source': 'database'
-                })
-            else:
-                return jsonify({'error': 'Issue not found'}), 404
+            try:
+                # Use the check_user_vouch function to get detailed vouch information
+                params = {
+                    'issue_id_param': issue_id,
+                    'user_id_param': user_id
+                }
+                result = supabase.rpc('check_user_vouch', params).execute()
+                
+                if result.data:
+                    vouch_data = result.data
+                    
+                    # Also get issue title for compatibility
+                    issue_result = supabase.table('issues').select('id, title').eq('id', issue_id).execute()
+                    issue_title = issue_result.data[0]['title'] if issue_result.data else 'Unknown'
+                    
+                    return jsonify({
+                        'issue_id': vouch_data['issue_id'],
+                        'title': issue_title,
+                        'vouch_count': vouch_data['vouch_count'],
+                        'vouch_priority': vouch_data['vouch_priority'],
+                        'user_vouched': vouch_data['user_vouched'],
+                        'user_id': vouch_data.get('user_id'),
+                        'source': 'database'
+                    })
+                else:
+                    # Fallback to simple query
+                    result = supabase.table('issues').select('id, title, vouch_priority').eq('id', issue_id).execute()
+                    
+                    if result.data:
+                        issue_data = result.data[0]
+                        vouch_count = issue_data.get('vouch_priority', 0)
+                        return jsonify({
+                            'issue_id': issue_data['id'],
+                            'title': issue_data['title'],
+                            'vouch_count': vouch_count,
+                            'vouch_priority': vouch_count,
+                            'user_vouched': False,
+                            'source': 'database'
+                        })
+                    else:
+                        return jsonify({'error': 'Issue not found'}), 404
+                        
+            except Exception as db_error:
+                print(f"Database check function error: {db_error}")
+                # Fallback to simple query
+                result = supabase.table('issues').select('id, title, vouch_priority').eq('id', issue_id).execute()
+                
+                if result.data:
+                    issue_data = result.data[0]
+                    vouch_count = issue_data.get('vouch_priority', 0)
+                    return jsonify({
+                        'issue_id': issue_data['id'],
+                        'title': issue_data['title'],
+                        'vouch_count': vouch_count,
+                        'vouch_priority': vouch_count,
+                        'user_vouched': False,  # Can't determine without function
+                        'source': 'database'
+                    })
+                else:
+                    return jsonify({'error': 'Issue not found'}), 404
         
         # Fallback to memory storage
         for issue in issues:
