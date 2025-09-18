@@ -9,10 +9,20 @@ import base64
 import random
 import string
 import jwt
+import json
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from supabase import create_client, Client
 from dotenv import load_dotenv
+
+# Firebase imports
+try:
+    import firebase_admin
+    from firebase_admin import auth, credentials
+    FIREBASE_AVAILABLE = True
+except ImportError:
+    FIREBASE_AVAILABLE = False
+    print("⚠️  Firebase Admin SDK not installed. Run: pip install firebase-admin")
 
 # Load environment variables
 load_dotenv()
@@ -42,6 +52,22 @@ else:
     except Exception as e:
         print(f"✗ Failed to initialize Supabase client: {e}")
         supabase = None
+
+# Initialize Firebase Admin SDK
+if FIREBASE_AVAILABLE:
+    firebase_cred_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_KEY')
+    if firebase_cred_json:
+        try:
+            cred_dict = json.loads(firebase_cred_json)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            print("✅ Firebase Admin SDK initialized successfully")
+        except Exception as e:
+            print(f"❌ Failed to initialize Firebase Admin SDK: {e}")
+    else:
+        print("⚠️  Firebase service account key not found in environment")
+else:
+    print("⚠️  Firebase Admin SDK not available")
 
 def log_api_access(endpoint, method, client_ip):
     """Log API access with timestamp"""
@@ -110,10 +136,10 @@ def create_issue():
         
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
-            payload = verify_jwt_token(token)
-            if payload:
-                user_id = payload['user_id']
-                print(f"✓ Authenticated user: {user_id}")
+            auth_data = verify_auth_token(token)
+            if auth_data:
+                user_id = auth_data['user_id']
+                print(f"✓ Authenticated user: {user_id} (via {auth_data['type']})")
             else:
                 print("⚠️ Invalid token provided, proceeding as anonymous")
         else:
@@ -372,7 +398,7 @@ def get_user_vouches():
         
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
-            payload = verify_jwt_token(token)
+            payload = verify_auth_token(token)
             if payload:
                 user_id = payload['user_id']
             else:
@@ -490,6 +516,69 @@ def verify_jwt_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
+
+def verify_firebase_token(id_token):
+    """Verify Firebase ID token and return user info"""
+    if not FIREBASE_AVAILABLE:
+        return {'success': False, 'error': 'Firebase not available'}
+
+    try:
+        # Verify the ID token
+        decoded_token = auth.verify_id_token(id_token)
+
+        # Extract user information
+        phone_number = decoded_token.get('phone_number')
+        uid = decoded_token.get('uid')
+
+        return {
+            'success': True,
+            'phone_number': phone_number,
+            'uid': uid,
+            'firebase_user': True
+        }
+
+    except auth.ExpiredIdTokenError:
+        return {'success': False, 'error': 'Token expired'}
+    except auth.InvalidIdTokenError:
+        return {'success': False, 'error': 'Invalid token'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def verify_auth_token(token):
+    """Verify authentication token (supports both JWT and Firebase tokens)"""
+    if not token:
+        return None
+
+    # First try JWT token
+    jwt_payload = verify_jwt_token(token)
+    if jwt_payload:
+        return {
+            'type': 'jwt',
+            'user_id': jwt_payload.get('user_id'),
+            'mobile_number': jwt_payload.get('mobile_number'),
+            'firebase_uid': jwt_payload.get('firebase_uid')
+        }
+
+    # If JWT fails, try Firebase token
+    if FIREBASE_AVAILABLE:
+        firebase_result = verify_firebase_token(token)
+        if firebase_result['success']:
+            # Look up user in database
+            if supabase:
+                try:
+                    response = supabase.table('users').select('*').eq('firebase_uid', firebase_result['uid']).execute()
+                    if response.data and len(response.data) > 0:
+                        user = response.data[0]
+                        return {
+                            'type': 'firebase',
+                            'user_id': user['id'],
+                            'mobile_number': user['mobile_number'],
+                            'firebase_uid': user['firebase_uid']
+                        }
+                except Exception as e:
+                    print(f"Error looking up Firebase user: {e}")
+
+    return None
 
 def send_otp_sms(mobile_number, otp):
     """Send OTP via SMS (mock implementation - integrate with SMS service)"""
@@ -635,6 +724,94 @@ def verify_otp():
         print(f"Error verifying OTP: {e}")
         return jsonify({'error': 'Authentication failed'}), 500
 
+@app.route('/auth/firebase', methods=['POST'])
+def firebase_auth():
+    """Handle Firebase phone authentication"""
+    log_api_access('/auth/firebase', 'POST', request.remote_addr)
+
+    try:
+        data = request.get_json()
+        id_token = data.get('idToken')
+
+        if not id_token:
+            return jsonify({'success': False, 'message': 'ID token required'}), 400
+
+        # Verify Firebase token
+        result = verify_firebase_token(id_token)
+
+        if not result['success']:
+            return jsonify({'success': False, 'message': result['error']}), 401
+
+        phone_number = result['phone_number']
+        firebase_uid = result['uid']
+
+        # Check if user exists in Supabase
+        user = None
+        if supabase:
+            try:
+                response = supabase.table('users').select('*').eq('mobile_number', phone_number).execute()
+                if response.data and len(response.data) > 0:
+                    user = response.data[0]
+            except Exception as e:
+                print(f"Error checking user in Supabase: {e}")
+
+        if not user:
+            # Create new user in Supabase
+            user_data = {
+                'mobile_number': phone_number,
+                'firebase_uid': firebase_uid,
+                'is_verified': True,
+                'created_at': datetime.now().isoformat(),
+                'auth_provider': 'firebase'
+            }
+
+            if supabase:
+                try:
+                    response = supabase.table('users').insert(user_data).execute()
+                    if response.data and len(response.data) > 0:
+                        user = response.data[0]
+                    print(f"✓ Created new Firebase user: {phone_number}")
+                except Exception as e:
+                    print(f"Error creating user in Supabase: {e}")
+                    return jsonify({'success': False, 'message': 'Failed to create user'}), 500
+        else:
+            # Update existing user with Firebase UID if not set
+            if not user.get('firebase_uid'):
+                if supabase:
+                    try:
+                        supabase.table('users').update({
+                            'firebase_uid': firebase_uid,
+                            'is_verified': True,
+                            'auth_provider': 'firebase'
+                        }).eq('id', user['id']).execute()
+                        user['firebase_uid'] = firebase_uid
+                        print(f"✓ Updated existing user with Firebase UID: {phone_number}")
+                    except Exception as e:
+                        print(f"Error updating user in Supabase: {e}")
+
+        # Generate JWT token for your app
+        token = generate_jwt_token({
+            'id': user['id'],
+            'mobile_number': phone_number,
+            'firebase_uid': firebase_uid
+        })
+
+        return jsonify({
+            'success': True,
+            'message': 'Firebase authentication successful',
+            'token': token,
+            'user': {
+                'id': user['id'],
+                'mobile_number': user['mobile_number'],
+                'firebase_uid': user['firebase_uid'],
+                'auth_provider': 'firebase'
+            }
+        })
+
+    except Exception as e:
+        print(f"Firebase auth error: {e}")
+        return jsonify({'success': False, 'message': 'Authentication failed'}), 500
+
 @app.route('/auth/profile', methods=['GET'])
 def get_profile():
     """Get user profile (requires authentication)"""
@@ -646,7 +823,7 @@ def get_profile():
             return jsonify({'error': 'Authorization token required'}), 401
         
         token = auth_header.split(' ')[1]
-        payload = verify_jwt_token(token)
+        payload = verify_auth_token(token)
         
         if not payload:
             return jsonify({'error': 'Invalid or expired token'}), 401
@@ -693,7 +870,7 @@ def update_profile():
             return jsonify({'error': 'Authorization token required'}), 401
         
         token = auth_header.split(' ')[1]
-        payload = verify_jwt_token(token)
+        payload = verify_auth_token(token)
         
         if not payload:
             return jsonify({'error': 'Invalid or expired token'}), 401
