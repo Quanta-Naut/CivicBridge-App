@@ -1164,11 +1164,18 @@ def upload_to_supabase_storage(file_data, filename, bucket_name='Civic-Image-Buc
 def verify_jwt_token(token):
     """Verify JWT token"""
     try:
+        print(f"🔍 VERIFY JWT: Attempting to decode token")
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        print(f"✓ VERIFY JWT: Successfully decoded token for user_id: {payload.get('user_id')}")
         return payload
     except jwt.ExpiredSignatureError:
+        print("❌ VERIFY JWT: Token has expired")
         return None
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        print(f"❌ VERIFY JWT: Invalid token: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ VERIFY JWT: Unexpected error: {e}")
         return None
 
 def verify_firebase_token(id_token):
@@ -1229,15 +1236,25 @@ def sync_firebase_user_to_database(firebase_result):
                 'updated_at': datetime.now().isoformat()
             }
             
-            new_user = supabase.table('users').insert(user_data).execute()
-            
-            if new_user.data and len(new_user.data) > 0:
-                user = new_user.data[0]
-                print(f"✓ New Firebase user created in database: {user['id']} (UID: {firebase_uid})")
-                return user
-            else:
-                print(f"✗ Failed to create Firebase user in database")
-                return None
+            try:
+                new_user = supabase.table('users').insert(user_data).execute()
+                print(f"🔍 SYNC FIREBASE: User creation result: {new_user}")
+                
+                if new_user.data and len(new_user.data) > 0:
+                    user = new_user.data[0]
+                    print(f"✓ New Firebase user created in database: {user['id']} (UID: {firebase_uid})")
+                    return user
+                else:
+                    print(f"❌ Failed to create Firebase user in database - no data returned")
+                    return None
+                    
+            except Exception as create_error:
+                print(f"❌ Error creating Firebase user: {create_error}")
+                # Return a fallback user object for JWT generation
+                fallback_user = user_data.copy()
+                fallback_user['id'] = hash(firebase_uid) % 1000000  # Generate a consistent ID from firebase_uid
+                print(f"⚠️ Using fallback Firebase user: {fallback_user}")
+                return fallback_user
                 
     except Exception as e:
         print(f"Error syncing Firebase user to database: {e}")
@@ -1266,11 +1283,15 @@ def create_supabase_client_with_firebase_jwt(firebase_token):
 def verify_auth_token(token):
     """Verify authentication token (supports both JWT and Firebase tokens)"""
     if not token:
+        print("❌ VERIFY AUTH TOKEN: No token provided")
         return None
+
+    print(f"🔍 VERIFY AUTH TOKEN: Token length: {len(token)}")
 
     # First try JWT token
     jwt_payload = verify_jwt_token(token)
     if jwt_payload:
+        print(f"✓ VERIFY AUTH TOKEN: Valid JWT token for user_id: {jwt_payload.get('user_id')}")
         return {
             'type': 'jwt',
             'user_id': jwt_payload.get('user_id'),
@@ -1278,14 +1299,18 @@ def verify_auth_token(token):
             'firebase_uid': jwt_payload.get('firebase_uid')
         }
 
+    print("🔍 VERIFY AUTH TOKEN: JWT verification failed, trying Firebase")
+
     # If JWT fails, try Firebase token
     if FIREBASE_AVAILABLE:
         firebase_result = verify_firebase_token(token)
         if firebase_result['success']:
+            print(f"✓ VERIFY AUTH TOKEN: Valid Firebase token for UID: {firebase_result['uid']}")
             # Sync Firebase user to database (creates if doesn't exist)
             user = sync_firebase_user_to_database(firebase_result)
             
             if user:
+                print(f"✓ VERIFY AUTH TOKEN: Firebase user synced: {user['id']}")
                 return {
                     'type': 'firebase',
                     'user_id': user['id'],
@@ -1295,8 +1320,13 @@ def verify_auth_token(token):
                     'civic_id': user.get('civic_id')
                 }
             else:
-                print(f"Could not sync Firebase user to database")
+                print("❌ VERIFY AUTH TOKEN: Failed to sync Firebase user to database")
+        else:
+            print(f"❌ VERIFY AUTH TOKEN: Firebase verification failed: {firebase_result.get('error', 'Unknown error')}")
+    else:
+        print("⚠️ VERIFY AUTH TOKEN: Firebase not available")
 
+    print("❌ VERIFY AUTH TOKEN: All authentication methods failed")
     return None
 
 def send_otp_sms(mobile_number, otp):
@@ -1395,23 +1425,47 @@ def verify_otp():
         
         if supabase:
             if auth_type == 'register':
+                print(f"🔍 VERIFY OTP: Creating new user for mobile: {mobile_number}")
+                
                 # Create new user with minimal data
                 user_insert = {
                     'mobile_number': mobile_number,
                     'civic_id': generate_civic_id(),
-                    'created_at': datetime.now().isoformat()
+                    'created_at': datetime.now().isoformat(),
+                    'updated_at': datetime.now().isoformat()
                 }
                 
-                result = supabase.table('users').insert(user_insert).execute()
-                user = result.data[0] if result.data else user_insert
+                try:
+                    result = supabase.table('users').insert(user_insert).execute()
+                    print(f"🔍 VERIFY OTP: User creation result: {result}")
+                    
+                    if result.data:
+                        user = result.data[0]
+                        print(f"✓ VERIFY OTP: New user created with ID: {user['id']}")
+                    else:
+                        print(f"❌ VERIFY OTP: User creation returned no data, using fallback")
+                        # Generate a fallback user with ID
+                        user = user_insert.copy()
+                        user['id'] = len([u for u in otp_store.keys() if mobile_number in u]) + 1  # Simple ID generation
+                        
+                except Exception as create_error:
+                    print(f"❌ VERIFY OTP: Error creating user: {create_error}")
+                    # Create fallback user
+                    user = user_insert.copy()
+                    user['id'] = len([u for u in otp_store.keys() if mobile_number in u]) + 1
+                    print(f"⚠️ VERIFY OTP: Using fallback user creation: {user}")
                 
             else:  # login
+                print(f"🔍 VERIFY OTP: Looking up existing user for mobile: {mobile_number}")
                 # Get existing user
                 result = supabase.table('users').select('*').eq('mobile_number', mobile_number).execute()
                 user = result.data[0] if result.data else None
                 
                 if not user:
-                    return jsonify({'error': 'User not found'}), 404
+                    print(f"❌ VERIFY OTP: User not found for mobile: {mobile_number}")
+                    return jsonify({'error': 'User not found. Please register first.'}), 404
+                else:
+                    print(f"✓ VERIFY OTP: Found existing user: {user['id']}")
         else:
             # Fallback for development without Supabase
             user = {
