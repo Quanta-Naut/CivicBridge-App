@@ -122,7 +122,7 @@ GRANT EXECUTE ON FUNCTION sync_firebase_user() TO authenticated;
 -- Grant permissions for the authenticated role
 GRANT SELECT, INSERT, UPDATE ON users TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON issues TO authenticated;
-GRANT SELECT, INSERT ON vouch_entries TO authenticated;
+-- Note: vouch_entries table removed as it doesn't exist in current schema
 
 -- Step 5: Test the setup
 -- Test query to verify Firebase JWT parsing works:

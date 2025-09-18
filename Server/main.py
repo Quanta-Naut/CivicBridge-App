@@ -329,36 +329,65 @@ def vouch_issue(issue_id):
     
     try:
         if supabase:
-            # First, get the current issue to check if it exists
-            result = supabase.table('issues').select('vouch_priority').eq('id', issue_id).execute()
-            
-            if not result.data:
-                return jsonify({'error': 'Issue not found'}), 404
-            
-            current_vouch = result.data[0].get('vouch_priority', 0)
-            new_vouch = current_vouch + 1
-            
-            # Update the vouch_priority
-            update_result = supabase.table('issues').update({
-                'vouch_priority': new_vouch
-            }).eq('id', issue_id).execute()
-            
-            if update_result.data:
-                print(f"✓ Issue {issue_id} vouch_priority updated to {new_vouch}")
-                response_data = {
-                    'message': 'Issue vouched successfully',
-                    'issue_id': issue_id,
-                    'vouch_count': new_vouch,
-                    'vouch_priority': new_vouch,
-                    'user_vouched': True,
-                    'source': 'database'
-                }
-                log_response(response_data, 200)
-                return jsonify(response_data), 200
-            else:
-                error_response = {'error': 'Failed to update vouch priority'}
-                log_response(error_response, 500)
-                return jsonify(error_response), 500
+            # Use the database function to handle vouching (bypasses RLS issues)
+            try:
+                result = supabase.rpc('vouch_issue', {'issue_id_param': issue_id}).execute()
+                
+                if result.data:
+                    vouch_result = result.data
+                    if vouch_result.get('success'):
+                        print(f"✓ Issue {issue_id} vouch_priority updated to {vouch_result['vouch_count']}")
+                        response_data = {
+                            'message': 'Issue vouched successfully',
+                            'issue_id': vouch_result['issue_id'],
+                            'vouch_count': vouch_result['vouch_count'],
+                            'vouch_priority': vouch_result['vouch_priority'],
+                            'user_vouched': True,
+                            'source': 'database'
+                        }
+                        log_response(response_data, 200)
+                        return jsonify(response_data), 200
+                    else:
+                        error_response = {'error': vouch_result.get('error', 'Vouch failed')}
+                        log_response(error_response, 404 if 'not found' in str(vouch_result.get('error', '')).lower() else 500)
+                        return jsonify(error_response), 404 if 'not found' in str(vouch_result.get('error', '')).lower() else 500
+                else:
+                    error_response = {'error': 'No response from vouch function'}
+                    log_response(error_response, 500)
+                    return jsonify(error_response), 500
+                    
+            except Exception as db_error:
+                print(f"Database vouch function error: {db_error}")
+                # Fallback to direct update if function doesn't exist
+                result = supabase.table('issues').select('vouch_priority').eq('id', issue_id).execute()
+                
+                if not result.data:
+                    return jsonify({'error': 'Issue not found'}), 404
+                
+                current_vouch = result.data[0].get('vouch_priority', 0)
+                new_vouch = current_vouch + 1
+                
+                # Try direct update
+                update_result = supabase.table('issues').update({
+                    'vouch_priority': new_vouch
+                }).eq('id', issue_id).execute()
+                
+                if update_result.data:
+                    print(f"✓ Issue {issue_id} vouch_priority updated to {new_vouch} (fallback)")
+                    response_data = {
+                        'message': 'Issue vouched successfully',
+                        'issue_id': issue_id,
+                        'vouch_count': new_vouch,
+                        'vouch_priority': new_vouch,
+                        'user_vouched': True,
+                        'source': 'database'
+                    }
+                    log_response(response_data, 200)
+                    return jsonify(response_data), 200
+                else:
+                    error_response = {'error': 'Failed to update vouch priority'}
+                    log_response(error_response, 500)
+                    return jsonify(error_response), 500
         
         # Fallback to memory storage (simplified vouch system)
         for issue in issues:
