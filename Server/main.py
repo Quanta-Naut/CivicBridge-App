@@ -1648,6 +1648,46 @@ def update_profile():
         if supabase:
             print(f"🔍 UPDATE PROFILE: Using Supabase for database update")
             
+            # First, check if the user exists
+            existing_user = supabase.table('users').select('*').eq('id', user_id).execute()
+            print(f"🔍 UPDATE PROFILE: Existing user check result: {existing_user.data}")
+            
+            if not existing_user.data:
+                print(f"⚠️ UPDATE PROFILE: User {user_id} not found in database, attempting to create")
+                
+                # Try to create the user with basic info
+                try:
+                    create_user_data = {
+                        'id': user_id,
+                        'mobile_number': auth_data.get('mobile_number', ''),
+                        'civic_id': generate_civic_id(),
+                        'created_at': datetime.now().isoformat(),
+                        'updated_at': datetime.now().isoformat()
+                    }
+                    
+                    create_result = supabase.table('users').insert(create_user_data).execute()
+                    print(f"✓ UPDATE PROFILE: User creation attempt result: {create_result}")
+                    
+                    if not create_result.data:
+                        print(f"❌ UPDATE PROFILE: Failed to create user, trying without ID")
+                        # Try without forcing ID
+                        create_user_data_no_id = create_user_data.copy()
+                        del create_user_data_no_id['id']
+                        create_result = supabase.table('users').insert(create_user_data_no_id).execute()
+                        print(f"✓ UPDATE PROFILE: User creation (auto ID) result: {create_result}")
+                        
+                        if create_result.data:
+                            # Update user_id to the newly created user's ID
+                            new_user_id = create_result.data[0]['id']
+                            print(f"⚠️ UPDATE PROFILE: Created user with new ID {new_user_id}, updating user_id")
+                            user_id = new_user_id
+                        else:
+                            return jsonify({'error': 'Failed to create user account'}), 500
+                            
+                except Exception as create_error:
+                    print(f"❌ UPDATE PROFILE: Error creating user: {create_error}")
+                    return jsonify({'error': 'Failed to create user account'}), 500
+            
             # Check if civic_id already exists for another user
             if civic_id:
                 print(f"🔍 UPDATE PROFILE: Checking civic_id conflict for: {civic_id}")
