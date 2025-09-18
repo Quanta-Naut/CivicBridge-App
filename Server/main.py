@@ -155,16 +155,25 @@ def create_issue():
         auth_header = request.headers.get('Authorization')
         user_id = None
         
+        print(f"🔍 CREATE ISSUE DEBUG: Auth header present: {bool(auth_header)}")
+        
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
+            print(f"🔍 CREATE ISSUE DEBUG: Token extracted (length: {len(token)})")
+            
             auth_data = verify_auth_token(token)
+            print(f"🔍 CREATE ISSUE DEBUG: Auth verification result: {bool(auth_data)}")
+            
             if auth_data:
                 user_id = auth_data['user_id']
-                print(f"✓ Authenticated user: {user_id} (via {auth_data['type']})")
+                print(f"✓ CREATE ISSUE: Authenticated user ID: {user_id} (via {auth_data['type']})")
+                print(f"✓ CREATE ISSUE: User details - mobile: {auth_data.get('mobile_number', 'N/A')}")
             else:
-                print("⚠️ Invalid token provided, proceeding as anonymous")
+                print("⚠️ CREATE ISSUE: Invalid token provided, proceeding as anonymous")
         else:
-            print("ℹ️ No authentication provided, creating issue anonymously")
+            print("ℹ️ CREATE ISSUE: No authentication provided, creating issue anonymously")
+        
+        print(f"🔍 CREATE ISSUE DEBUG: Final user_id to be saved: {user_id} (type: {type(user_id)})")
         
         # Get form data
         title = request.form.get('title')
@@ -249,6 +258,12 @@ def create_issue():
             'status': 'Open',
             'created_at': datetime.now().isoformat()
         }
+        
+        print(f"🔍 CREATE ISSUE DEBUG: Issue data to save:")
+        print(f"   - user_id: {issue_data['user_id']} (type: {type(issue_data['user_id'])})")
+        print(f"   - title: {issue_data['title']}")
+        print(f"   - category: {issue_data['category']}")
+        print(f"   - status: {issue_data['status']}")
         
         # Save to Supabase first, fallback to memory storage
         saved_issue = save_issue_to_supabase(issue_data)
