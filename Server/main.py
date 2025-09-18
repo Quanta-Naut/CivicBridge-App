@@ -391,19 +391,33 @@ def get_nearby_issues():
     log_api_access('/api/issues/nearby', 'GET', request.remote_addr)
     
     try:
-        # Extract current user information from Firebase token
+        # Extract current user information from authentication token
         current_user_id = None
+        current_user_info = None
         auth_header = request.headers.get('Authorization')
+        
+        print(f"🔍 NEARBY ISSUES DEBUG: Auth header present: {bool(auth_header)}")
         
         if auth_header and auth_header.startswith('Bearer '):
             try:
                 token = auth_header.split(' ')[1]
+                print(f"🔍 NEARBY ISSUES DEBUG: Token extracted (length: {len(token)})")
+                
                 auth_data = verify_auth_token(token)
+                print(f"🔍 NEARBY ISSUES DEBUG: Auth verification result: {bool(auth_data)}")
+                
                 if auth_data:
-                    current_user_id = auth_data['user_id']
-                    print(f"✓ Authenticated user for nearby issues: {current_user_id} (via {auth_data['type']})")
+                    current_user_id = auth_data.get('user_id')
+                    current_user_info = auth_data
+                    print(f"✓ NEARBY ISSUES: Authenticated user ID: {current_user_id} (via {auth_data.get('type', 'unknown')})")
+                    print(f"✓ NEARBY ISSUES: User details - mobile: {auth_data.get('mobile_number', 'N/A')}, firebase_uid: {auth_data.get('firebase_uid', 'N/A')}")
+                else:
+                    print("⚠️ NEARBY ISSUES: Authentication token verification failed")
             except Exception as auth_error:
-                print(f"⚠️ Authentication failed for nearby issues (will show all): {auth_error}")
+                print(f"❌ NEARBY ISSUES: Authentication error: {auth_error}")
+                current_user_id = None
+        else:
+            print("ℹ️ NEARBY ISSUES: No authentication header provided")
         
         if supabase:
             print("🔍 Fetching nearby issues (excluding user's own issues)...")
@@ -415,23 +429,52 @@ def get_nearby_issues():
                 if result.data:
                     # Filter out current user's issues if user is authenticated
                     filtered_issues = result.data
+                    original_count = len(result.data)
+                    
                     if current_user_id:
-                        # Debug logging
-                        print(f"🔍 DEBUG: Current user ID: {current_user_id}")
-                        print(f"🔍 DEBUG: Total issues from view: {len(result.data)}")
+                        print(f"🔍 FILTERING DEBUG: Current user ID: {current_user_id} (type: {type(current_user_id)})")
+                        print(f"🔍 FILTERING DEBUG: Total issues from view: {original_count}")
                         
-                        # Log a few sample issues for debugging
+                        # Log sample issues for debugging
                         for i, issue in enumerate(result.data[:3]):
-                            print(f"🔍 DEBUG: Issue {i+1} - ID: {issue.get('id')}, user_id: {issue.get('user_id')}, title: {issue.get('title', 'No title')[:30]}...")
+                            issue_user_id = issue.get('user_id')
+                            print(f"🔍 FILTERING DEBUG: Issue {i+1}:")
+                            print(f"   - Issue ID: {issue.get('id')}")
+                            print(f"   - Issue user_id: {issue_user_id} (type: {type(issue_user_id)})")
+                            print(f"   - Title: {issue.get('title', 'No title')[:30]}...")
+                            print(f"   - Match current user? {issue_user_id == current_user_id}")
+                        
+                        # Enhanced filtering with type conversion handling
+                        def should_exclude_issue(issue):
+                            issue_user_id = issue.get('user_id')
+                            
+                            # Handle None cases
+                            if issue_user_id is None or current_user_id is None:
+                                return False
+                            
+                            # Convert both to same type for comparison
+                            try:
+                                # Try to convert both to integers for comparison
+                                issue_user_id_int = int(issue_user_id)
+                                current_user_id_int = int(current_user_id)
+                                return issue_user_id_int == current_user_id_int
+                            except (ValueError, TypeError):
+                                # Fallback to string comparison
+                                return str(issue_user_id) == str(current_user_id)
                         
                         # Filter out issues reported by current user
-                        filtered_issues = [issue for issue in result.data if issue.get('user_id') != current_user_id]
-                        print(f"✓ Filtered out current user's issues. Showing {len(filtered_issues)} of {len(result.data)} issues")
+                        filtered_issues = [issue for issue in result.data if not should_exclude_issue(issue)]
+                        filtered_count = len(filtered_issues)
+                        excluded_count = original_count - filtered_count
                         
-                        if len(filtered_issues) == len(result.data):
-                            print("⚠️ WARNING: No issues were filtered out - all issues have different user_id than current user")
+                        print(f"✓ FILTERING RESULT: Excluded {excluded_count} user's own issues")
+                        print(f"✓ FILTERING RESULT: Showing {filtered_count} of {original_count} total issues")
+                        
+                        if excluded_count == 0:
+                            print("⚠️ WARNING: No issues were filtered out - user may not have any issues OR filtering failed")
+                            print(f"⚠️ WARNING: Check if user_id {current_user_id} exists in issues table")
                     else:
-                        print("ℹ️ No authentication provided - showing all issues")
+                        print("ℹ️ FILTERING: No authentication provided - showing all issues")
                     
                     # Add compatible fields for frontend
                     for issue in filtered_issues:
@@ -452,10 +495,17 @@ def get_nearby_issues():
                         'issues': filtered_issues, 
                         'source': 'issue_vouch_counts_view_filtered', 
                         'count': len(filtered_issues),
+                        'original_count': original_count,
+                        'excluded_count': excluded_count,
                         'excluded_user_issues': current_user_id is not None,
-                        'user_id': current_user_id
+                        'current_user_id': current_user_id,
+                        'user_info': {
+                            'id': current_user_id,
+                            'mobile_number': current_user_info.get('mobile_number') if current_user_info else None,
+                            'firebase_uid': current_user_info.get('firebase_uid') if current_user_info else None
+                        } if current_user_info else None
                     }
-                    print(f"✓ Found {len(filtered_issues)} nearby issues (user's own issues excluded)")
+                    print(f"✓ VIEW RESULT: Returning {len(filtered_issues)} nearby issues (excluded {excluded_count} user's own)")
                     log_response(response_data, 200)
                     return jsonify(response_data)
                     
@@ -464,28 +514,50 @@ def get_nearby_issues():
                 # Fallback to regular issues table
             
             # Fallback: use regular issues table with user filtering
+            print("🔍 FALLBACK: Using regular issues table")
             select_fields = 'id,title,description,latitude,longitude,category,priority,vouch_priority,status,created_at,image_filename,audio_filename,image_url,audio_url,description_mode,user_id'
             
-            if current_user_id:
-                # Exclude current user's issues
-                result = supabase.table('issues').select(select_fields).neq('user_id', current_user_id).order('created_at', desc=True).execute()
-            else:
-                # Show all issues if no authenticated user
-                result = supabase.table('issues').select(select_fields).order('created_at', desc=True).execute()
+            # Always fetch all issues first, then filter in Python for consistency
+            result = supabase.table('issues').select(select_fields).order('created_at', desc=True).execute()
             
             if result.data:
+                original_count = len(result.data)
+                filtered_issues = result.data
+                
+                if current_user_id:
+                    print(f"🔍 FALLBACK FILTERING: User ID: {current_user_id}, Original count: {original_count}")
+                    
+                    # Apply same filtering logic as above
+                    def should_exclude_issue(issue):
+                        issue_user_id = issue.get('user_id')
+                        
+                        if issue_user_id is None or current_user_id is None:
+                            return False
+                        
+                        try:
+                            issue_user_id_int = int(issue_user_id)
+                            current_user_id_int = int(current_user_id)
+                            return issue_user_id_int == current_user_id_int
+                        except (ValueError, TypeError):
+                            return str(issue_user_id) == str(current_user_id)
+                    
+                    filtered_issues = [issue for issue in result.data if not should_exclude_issue(issue)]
+                    excluded_count = original_count - len(filtered_issues)
+                    print(f"✓ FALLBACK FILTERING: Excluded {excluded_count} user's own issues")
+                
                 # Add vouch_count field using the existing vouch_priority for consistency
-                for issue in result.data:
+                for issue in filtered_issues:
                     issue['vouch_count'] = issue.get('vouch_priority', 0)
                 
                 response_data = {
-                    'issues': result.data, 
-                    'source': 'database_filtered', 
-                    'count': len(result.data),
+                    'issues': filtered_issues, 
+                    'source': 'database_fallback_filtered', 
+                    'count': len(filtered_issues),
+                    'original_count': original_count,
                     'excluded_user_issues': current_user_id is not None,
                     'user_id': current_user_id
                 }
-                print(f"✓ Found {len(result.data)} nearby issues from database (filtered)")
+                print(f"✓ FALLBACK RESULT: Returning {len(filtered_issues)} nearby issues from database")
                 log_response(response_data, 200)
                 return jsonify(response_data)
         
@@ -509,6 +581,63 @@ def get_nearby_issues():
         error_response = {'issues': [], 'source': 'error', 'error': str(e), 'count': 0}
         log_response(error_response, 200)
         return jsonify(error_response)
+
+@app.route('/api/debug/user-issues', methods=['GET'])
+def debug_user_issues():
+    """Debug endpoint to check user's issues and filtering logic"""
+    log_api_access('/api/debug/user-issues', 'GET', request.remote_addr)
+    
+    try:
+        # Extract current user information
+        current_user_id = None
+        auth_header = request.headers.get('Authorization')
+        
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            auth_data = verify_auth_token(token)
+            if auth_data:
+                current_user_id = auth_data.get('user_id')
+        
+        if not current_user_id:
+            return jsonify({
+                'error': 'No authentication provided',
+                'message': 'Please login to see debug information'
+            }), 401
+        
+        debug_info = {
+            'current_user_id': current_user_id,
+            'current_user_id_type': str(type(current_user_id)),
+            'auth_data': auth_data
+        }
+        
+        if supabase:
+            # Get all issues
+            result = supabase.table('issues').select('id,title,user_id,created_at').order('created_at', desc=True).execute()
+            
+            if result.data:
+                all_issues = result.data
+                user_issues = [issue for issue in all_issues if issue.get('user_id') == current_user_id]
+                other_issues = [issue for issue in all_issues if issue.get('user_id') != current_user_id]
+                
+                debug_info.update({
+                    'total_issues': len(all_issues),
+                    'user_issues_count': len(user_issues),
+                    'other_issues_count': len(other_issues),
+                    'user_issues': user_issues[:5],  # First 5 user issues
+                    'other_issues_sample': other_issues[:5],  # First 5 other issues
+                    'all_issues_sample': all_issues[:5]  # First 5 all issues
+                })
+                
+                # Check data types in issues
+                if all_issues:
+                    sample_issue = all_issues[0]
+                    debug_info['sample_issue_user_id'] = sample_issue.get('user_id')
+                    debug_info['sample_issue_user_id_type'] = str(type(sample_issue.get('user_id')))
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/issues/<int:issue_id>/vouch', methods=['POST'])
 def vouch_issue(issue_id):
