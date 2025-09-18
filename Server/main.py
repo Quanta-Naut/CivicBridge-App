@@ -1623,27 +1623,39 @@ def update_profile():
         print(f"🔍 UPDATE PROFILE DEBUG: Final user_id to be updated: {user_id} (type: {type(user_id)})")
         
         data = request.get_json()
+        print(f"🔍 UPDATE PROFILE DEBUG: Received data: {data}")
+        
         full_name = data.get('full_name')
         email = data.get('email')
         address = data.get('address')
         civic_id = data.get('civic_id')
         
+        print(f"🔍 UPDATE PROFILE DEBUG: Extracted fields - full_name: '{full_name}', email: '{email}', address: '{address}', civic_id: '{civic_id}'")
+        
         if not all([full_name, email, address]):
+            print(f"❌ UPDATE PROFILE: Missing required fields - full_name: {bool(full_name)}, email: {bool(email)}, address: {bool(address)}")
             return jsonify({'error': 'Full name, email, and address are required'}), 400
         
         # Validate email
         import re
         email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
         if not re.match(email_regex, email):
+            print(f"❌ UPDATE PROFILE: Invalid email format: {email}")
             return jsonify({'error': 'Invalid email format'}), 400
         
+        print(f"✓ UPDATE PROFILE: Validation passed, proceeding with update")
+        
         if supabase:
+            print(f"🔍 UPDATE PROFILE: Using Supabase for database update")
+            
             # Check if civic_id already exists for another user
             if civic_id:
+                print(f"🔍 UPDATE PROFILE: Checking civic_id conflict for: {civic_id}")
                 existing = supabase.table('users').select('id').eq('civic_id', civic_id).neq('id', user_id).execute()
                 if existing.data:
-                    # Generate a new civic_id if conflict
+                    print(f"⚠️ UPDATE PROFILE: Civic ID conflict detected, generating new one")
                     civic_id = generate_civic_id()
+                    print(f"✓ UPDATE PROFILE: New civic_id generated: {civic_id}")
             
             # Update user profile
             update_data = {
@@ -1654,12 +1666,29 @@ def update_profile():
                 'updated_at': datetime.now().isoformat()
             }
             
-            result = supabase.table('users').update(update_data).eq('id', user_id).execute()
-            user = result.data[0] if result.data else None
+            print(f"🔍 UPDATE PROFILE: Update data prepared: {update_data}")
+            print(f"🔍 UPDATE PROFILE: Updating user with ID: {user_id}")
             
-            if not user:
-                return jsonify({'error': 'Failed to update user'}), 500
+            try:
+                result = supabase.table('users').update(update_data).eq('id', user_id).execute()
+                print(f"🔍 UPDATE PROFILE: Supabase update result: {result}")
+                print(f"🔍 UPDATE PROFILE: Result data: {result.data}")
+                
+                user = result.data[0] if result.data else None
+                print(f"🔍 UPDATE PROFILE: Extracted user: {user}")
+                
+                if not user:
+                    print(f"❌ UPDATE PROFILE: No user data returned from update")
+                    return jsonify({'error': 'Failed to update user'}), 500
+                    
+                print(f"✓ UPDATE PROFILE: User updated successfully in database")
+                
+            except Exception as db_error:
+                print(f"❌ UPDATE PROFILE: Database error during update: {db_error}")
+                return jsonify({'error': 'Database error during update'}), 500
+                
         else:
+            print(f"⚠️ UPDATE PROFILE: Supabase not available, using fallback")
             # Fallback for development
             user = {
                 'id': user_id,
@@ -1670,6 +1699,7 @@ def update_profile():
                 'address': address
             }
         
+        print(f"✓ UPDATE PROFILE: Preparing success response")
         return jsonify({
             'message': 'Profile updated successfully',
             'user': {
