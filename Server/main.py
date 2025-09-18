@@ -652,6 +652,71 @@ def verify_firebase_token(id_token):
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+def sync_firebase_user_to_database(firebase_result):
+    """Sync Firebase user to Supabase users table and ensure authenticated role"""
+    if not supabase:
+        return None
+        
+    try:
+        firebase_uid = firebase_result['uid']
+        phone_number = firebase_result.get('phone_number', '')
+        
+        # Normalize phone number (remove +91 prefix)
+        mobile_number = normalize_phone_number(phone_number)
+        
+        # Check if user already exists
+        existing_user = supabase.table('users').select('*').eq('firebase_uid', firebase_uid).execute()
+        
+        if existing_user.data and len(existing_user.data) > 0:
+            # User exists, return existing user data
+            user = existing_user.data[0]
+            print(f"✓ Firebase user {firebase_uid} found in database: {user['id']}")
+            return user
+        else:
+            # User doesn't exist, create new user
+            civic_id = generate_civic_id()
+            user_data = {
+                'firebase_uid': firebase_uid,
+                'mobile_number': mobile_number or '',
+                'civic_id': civic_id,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            new_user = supabase.table('users').insert(user_data).execute()
+            
+            if new_user.data and len(new_user.data) > 0:
+                user = new_user.data[0]
+                print(f"✓ New Firebase user created in database: {user['id']} (UID: {firebase_uid})")
+                return user
+            else:
+                print(f"✗ Failed to create Firebase user in database")
+                return None
+                
+    except Exception as e:
+        print(f"Error syncing Firebase user to database: {e}")
+        return None
+
+def create_supabase_client_with_firebase_jwt(firebase_token):
+    """Create Supabase client with Firebase JWT for authenticated requests"""
+    try:
+        # Create a Supabase client with the Firebase JWT token
+        # This ensures the user gets the 'authenticated' role
+        firebase_supabase = create_client(
+            supabase_url, 
+            supabase_key,
+            options={
+                'auth': {
+                    'access_token': firebase_token,
+                    'token_type': 'bearer'
+                }
+            }
+        )
+        return firebase_supabase
+    except Exception as e:
+        print(f"Error creating Firebase-authenticated Supabase client: {e}")
+        return None
+
 def verify_auth_token(token):
     """Verify authentication token (supports both JWT and Firebase tokens)"""
     if not token:
@@ -671,20 +736,20 @@ def verify_auth_token(token):
     if FIREBASE_AVAILABLE:
         firebase_result = verify_firebase_token(token)
         if firebase_result['success']:
-            # Look up user in database
-            if supabase:
-                try:
-                    response = supabase.table('users').select('*').eq('firebase_uid', firebase_result['uid']).execute()
-                    if response.data and len(response.data) > 0:
-                        user = response.data[0]
-                        return {
-                            'type': 'firebase',
-                            'user_id': user['id'],
-                            'mobile_number': user['mobile_number'],
-                            'firebase_uid': user['firebase_uid']
-                        }
-                except Exception as e:
-                    print(f"Error looking up Firebase user: {e}")
+            # Sync Firebase user to database (creates if doesn't exist)
+            user = sync_firebase_user_to_database(firebase_result)
+            
+            if user:
+                return {
+                    'type': 'firebase',
+                    'user_id': user['id'],
+                    'mobile_number': user['mobile_number'],
+                    'firebase_uid': user['firebase_uid'],
+                    'firebase_token': token,  # Include original token for authenticated requests
+                    'civic_id': user.get('civic_id')
+                }
+            else:
+                print(f"Could not sync Firebase user to database")
 
     return None
 
