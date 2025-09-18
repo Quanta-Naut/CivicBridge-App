@@ -171,6 +171,7 @@ DROP VIEW IF EXISTS issue_vouch_counts;
 CREATE VIEW issue_vouch_counts AS
 SELECT 
     i.id,
+    i.user_id,  -- Add user_id from issues table for filtering
     i.title,
     i.description,
     i.status,
@@ -194,7 +195,7 @@ SELECT
 FROM issues i
 LEFT JOIN vouches v ON i.id = v.issue_id
 LEFT JOIN users u ON v.user_id = u.id
-GROUP BY i.id, i.title, i.description, i.status, i.category, i.priority, 
+GROUP BY i.id, i.user_id, i.title, i.description, i.status, i.category, i.priority, 
          i.latitude, i.longitude, i.vouch_priority, i.created_at, i.updated_at;
 
 -- 6. Grant public access to the issue_vouch_counts view (unrestricted as requested)

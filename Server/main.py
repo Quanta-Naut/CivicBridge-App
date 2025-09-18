@@ -416,9 +416,22 @@ def get_nearby_issues():
                     # Filter out current user's issues if user is authenticated
                     filtered_issues = result.data
                     if current_user_id:
+                        # Debug logging
+                        print(f"🔍 DEBUG: Current user ID: {current_user_id}")
+                        print(f"🔍 DEBUG: Total issues from view: {len(result.data)}")
+                        
+                        # Log a few sample issues for debugging
+                        for i, issue in enumerate(result.data[:3]):
+                            print(f"🔍 DEBUG: Issue {i+1} - ID: {issue.get('id')}, user_id: {issue.get('user_id')}, title: {issue.get('title', 'No title')[:30]}...")
+                        
                         # Filter out issues reported by current user
                         filtered_issues = [issue for issue in result.data if issue.get('user_id') != current_user_id]
                         print(f"✓ Filtered out current user's issues. Showing {len(filtered_issues)} of {len(result.data)} issues")
+                        
+                        if len(filtered_issues) == len(result.data):
+                            print("⚠️ WARNING: No issues were filtered out - all issues have different user_id than current user")
+                    else:
+                        print("ℹ️ No authentication provided - showing all issues")
                     
                     # Add compatible fields for frontend
                     for issue in filtered_issues:
