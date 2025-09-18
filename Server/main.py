@@ -498,6 +498,27 @@ def generate_civic_id():
     random_num = random.randint(100000, 999999)
     return f"{prefix}{random_num}"
 
+def normalize_phone_number(phone_number):
+    """
+    Convert Firebase phone number format to database format
+    Firebase: "+919876543210" -> Database: "9876543210" (10 digits)
+    """
+    if not phone_number:
+        return None
+    
+    # Remove any spaces or special characters except +
+    cleaned = phone_number.replace(' ', '').replace('-', '')
+    
+    # Handle Indian phone numbers (+91)
+    if cleaned.startswith('+91'):
+        return cleaned[3:]  # Remove +91, keep 10 digits
+    elif cleaned.startswith('91') and len(cleaned) == 12:
+        return cleaned[2:]  # Remove 91, keep 10 digits  
+    elif cleaned.startswith('+'):
+        return cleaned[1:]  # Remove + for other countries
+    else:
+        return cleaned[-10:] if len(cleaned) >= 10 else cleaned  # Take last 10 digits
+
 def generate_jwt_token(user_data):
     """Generate JWT token for user"""
     payload = {
@@ -742,27 +763,33 @@ def firebase_auth():
         if not result['success']:
             return jsonify({'success': False, 'message': result['error']}), 401
 
-        phone_number = result['phone_number']
+        firebase_phone = result['phone_number']  # Full phone with country code
         firebase_uid = result['uid']
+        
+        # Normalize phone number to fit database format (10 digits)
+        normalized_phone = normalize_phone_number(firebase_phone)
+        
+        print(f"Firebase phone: {firebase_phone}, Normalized: {normalized_phone}")
 
-        # Check if user exists in Supabase
+        # Check if user exists in Supabase (try normalized format first)
         user = None
         if supabase:
             try:
-                response = supabase.table('users').select('*').eq('mobile_number', phone_number).execute()
+                response = supabase.table('users').select('*').eq('mobile_number', normalized_phone).execute()
                 if response.data and len(response.data) > 0:
                     user = response.data[0]
+                    print(f"Found existing user: {normalized_phone}")
             except Exception as e:
                 print(f"Error checking user in Supabase: {e}")
 
         if not user:
             # Create new user in Supabase
             user_data = {
-                'mobile_number': phone_number,
+                'mobile_number': normalized_phone,  # Use normalized format (10 digits)
                 'firebase_uid': firebase_uid,
                 'is_verified': True,
-                'created_at': datetime.now().isoformat(),
                 'auth_provider': 'firebase'
+                # Remove created_at - let database handle with DEFAULT NOW()
             }
 
             if supabase:
@@ -770,7 +797,7 @@ def firebase_auth():
                     response = supabase.table('users').insert(user_data).execute()
                     if response.data and len(response.data) > 0:
                         user = response.data[0]
-                    print(f"✓ Created new Firebase user: {phone_number}")
+                    print(f"✓ Created new Firebase user: {normalized_phone}")
                 except Exception as e:
                     print(f"Error creating user in Supabase: {e}")
                     return jsonify({'success': False, 'message': 'Failed to create user'}), 500
@@ -785,14 +812,14 @@ def firebase_auth():
                             'auth_provider': 'firebase'
                         }).eq('id', user['id']).execute()
                         user['firebase_uid'] = firebase_uid
-                        print(f"✓ Updated existing user with Firebase UID: {phone_number}")
+                        print(f"✓ Updated existing user with Firebase UID: {normalized_phone}")
                     except Exception as e:
                         print(f"Error updating user in Supabase: {e}")
 
         # Generate JWT token for your app
         token = generate_jwt_token({
             'id': user['id'],
-            'mobile_number': phone_number,
+            'mobile_number': user['mobile_number'],  # Use the mobile_number from user record
             'firebase_uid': firebase_uid
         })
 
