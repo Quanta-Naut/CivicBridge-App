@@ -6,9 +6,9 @@ import './IssuesList.css';
 
 import { MdKeyboardArrowLeft } from "react-icons/md";
 
-const IssuesList = ({ onBack, onViewDetail, initialIssues = [] }) => {
+const IssuesList = ({ onBack, onViewDetail }) => {
   const { user } = useAuth();
-  const [issues, setIssues] = useState(initialIssues);
+  const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -17,6 +17,10 @@ const IssuesList = ({ onBack, onViewDetail, initialIssues = [] }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [showMyIssues, setShowMyIssues] = useState(false);
   const [showOpenOnly, setShowOpenOnly] = useState(true); // On by default
+
+  // Pagination state
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Refresh issues from Flask API
   const refreshIssues = async () => {
@@ -56,9 +60,7 @@ const IssuesList = ({ onBack, onViewDetail, initialIssues = [] }) => {
 
   // Load issues on component mount
   useEffect(() => {
-    if (initialIssues.length === 0) {
-      refreshIssues();
-    }
+    refreshIssues();
   }, []);
 
 
@@ -89,6 +91,22 @@ const IssuesList = ({ onBack, onViewDetail, initialIssues = [] }) => {
     return matchesSearch && matchesStatus && matchesCategory && matchesPriority && matchesUser && matchesOpenOnly;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedIssues = filteredIssues.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, categoryFilter, priorityFilter, showMyIssues, showOpenOnly]);
+
+  // Reset to first page when items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
+
   const getAddressFromCoordinates = (latitude, longitude) => {
     // For now, return a simplified address format
     // In a real app, you might want to use reverse geocoding
@@ -112,44 +130,49 @@ const IssuesList = ({ onBack, onViewDetail, initialIssues = [] }) => {
       <div className="top-black-bar"></div>
       
       {/* Header */}
-      <div className="issues-list-header">
-        <button className="back-btn" onClick={onBack}>
-          <MdKeyboardArrowLeft />
-        </button>
-        <h2>All Issues</h2>
-        <button 
-          className="refresh-btn-header" 
-          onClick={refreshIssues}
-          disabled={loading}
-          title="Refresh issues"
-        >
-          <IoRefresh className={loading ? 'spinning' : ''} />
-        </button>
-      </div>
+     <div className="issues-list-header">
+  <div className="issues-left-group">
+    <button className="back-btn" onClick={onBack}>
+      <MdKeyboardArrowLeft />
+    </button>
+    <h2>All Issues</h2>
+  </div>
+  <button 
+    className="refresh-btn-header" 
+    onClick={refreshIssues}
+    disabled={loading}
+    title="Refresh issues"
+  >
+    <IoRefresh className={loading ? 'spinning' : ''} />
+  </button>
+</div>
 
       {/* Search and Filters */}
-      <div className="search-filter-section">
-        <button 
-          className="filter-toggle-btn"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <IoFilter /> Filters
-        </button>
-        
-        <button 
-          className={`my-issues-toggle ${showMyIssues ? 'active' : ''}`}
-          onClick={() => setShowMyIssues(!showMyIssues)}
-        >
-          {showMyIssues ? 'My Issues' : 'All Issues'}
-        </button>
-        
-        <button 
-          className={`open-issues-toggle ${showOpenOnly ? 'active' : ''}`}
-          onClick={() => setShowOpenOnly(!showOpenOnly)}
-        >
-          {showOpenOnly ? 'Open' : 'Closed'}
-        </button>
-      </div>
+<div className="search-filter-section">
+  <button 
+    className="filter-toggle-btn"
+    onClick={() => setShowFilters(!showFilters)}
+  >
+    <IoFilter /> Filters
+  </button>
+
+  <div className="toggle-group">
+    <button 
+      className={`my-issues-toggle ${showMyIssues ? 'active' : ''}`}
+      onClick={() => setShowMyIssues(!showMyIssues)}
+    >
+      {showMyIssues ? 'My Issues' : 'All Issues'}
+    </button>
+
+    <button 
+      className={`open-issues-toggle ${showOpenOnly ? 'active' : ''}`}
+      onClick={() => setShowOpenOnly(!showOpenOnly)}
+    >
+      {showOpenOnly ? 'Open' : 'Closed'}
+    </button>
+  </div>
+</div>
+
 
       {/* Filter Options */}
       {showFilters && (
@@ -206,12 +229,54 @@ const IssuesList = ({ onBack, onViewDetail, initialIssues = [] }) => {
         </div>
       )}
 
-      {/* Results Summary */}
+      {/* Results Summary with Pagination */}
       <div className="results-summary">
-        <span>
-          Showing {filteredIssues.length} of {issues.length} issues
-          {searchQuery && ` for "${searchQuery}"`}
-        </span>
+        <div className="results-controls">
+          <div className="results-info">
+            <span>
+              Showing {startIndex + 1}-{Math.min(endIndex, filteredIssues.length)} of {filteredIssues.length} issues
+              {searchQuery && ` for "${searchQuery}"`}
+            </span>
+          </div>
+
+          <div className="pagination-controls">
+            <div className="items-per-page">
+              <label>Show:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="items-per-page-select"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            <div className="page-navigation">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="page-btn"
+              >
+                ‹ Prev
+              </button>
+
+              <span className="page-info">
+                Page {currentPage} of {totalPages || 1}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages || 1, prev + 1))}
+                disabled={currentPage === (totalPages || 1)}
+                className="page-btn"
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Issues List */}
@@ -221,9 +286,9 @@ const IssuesList = ({ onBack, onViewDetail, initialIssues = [] }) => {
             <IoRefresh className="spinning" />
             <p>Loading issues...</p>
           </div>
-        ) : filteredIssues.length > 0 ? (
+        ) : paginatedIssues.length > 0 ? (
           <div className="issues-grid">
-            {filteredIssues.map((issue) => (
+            {paginatedIssues.map((issue) => (
               <div key={issue.id} className="issue-card">
                 <div className="issue-card-header">
                   <h3 className="issue-card-title">{issue.title}</h3>

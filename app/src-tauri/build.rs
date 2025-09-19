@@ -10,5 +10,10 @@ fn main() {
         println!("cargo:rustc-env=TAURI_API_ENDPOINT={}", endpoint);
     }
     
+    // Pass the new CIVIC_API_ENV variable to the build
+    if let Ok(api_env) = std::env::var("CIVIC_API_ENV") {
+        println!("cargo:rustc-env=CIVIC_API_ENV={}", api_env);
+    }
+    
     tauri_build::build()
 }

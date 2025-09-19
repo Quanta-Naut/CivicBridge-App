@@ -180,6 +180,72 @@ const IssueDetail = ({ issue, onBack }) => {
           </div>
         </div>
 
+        {/* Media Section */}
+        {(issue.image_url || issue.image_base64 || issue.audio_url || issue.audio_base64) && (
+          <div className="detail-section">
+            <h3>Media</h3>
+            <div className="media-grid">
+              {/* Image Display */}
+              {(issue.image_url || issue.image_base64) && (
+                <div className="media-item">
+                  <label>Issue Photo</label>
+                  <div className="media-container">
+                    <img
+                      src={issue.image_url || issue.image_base64}
+                      alt="Issue photo"
+                      className="issue-image"
+                      onClick={() => setShowImageModal(true)}
+                      style={{ cursor: 'pointer' }}
+                      onError={(e) => {
+                        console.error('Image failed to load:', e.target.src);
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                    <div className="image-placeholder" style={{ display: 'none' }}>
+                      <span>📷 Image Not Available</span>
+                      <p className="media-note">Image could not be loaded</p>
+                    </div>
+                    <p className="media-note">Click to view full size</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Audio Display */}
+              {(issue.audio_url || issue.audio_base64) && (
+                <div className="media-item">
+                  <label>Audio Description</label>
+                  <div className="media-container">
+                    <audio 
+                      controls 
+                      className="issue-audio"
+                      onError={(e) => {
+                        console.error('Audio failed to load:', e.target.src);
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    >
+                      <source 
+                        src={issue.audio_url || `data:audio/webm;base64,${issue.audio_base64}`} 
+                        type="audio/webm" 
+                      />
+                      <source 
+                        src={issue.audio_url || `data:audio/wav;base64,${issue.audio_base64}`} 
+                        type="audio/wav" 
+                      />
+                      Your browser does not support the audio element.
+                    </audio>
+                    <div className="audio-placeholder" style={{ display: 'none' }}>
+                      <span>🔊 Audio Not Available</span>
+                      <p className="media-note">Audio could not be loaded</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Timestamps */}
         <div className="detail-section">
           <h3>Timeline</h3>
@@ -215,9 +281,28 @@ const IssueDetail = ({ issue, onBack }) => {
                 className="image-container"
                 onWheel={handleImageWheel}
               >
-                <div className="image-placeholder large">
-                  <span>📷 Image Preview</span>
-                  <p>Image would be displayed here</p>
+                {(issue.image_url || issue.image_base64) ? (
+                  <img
+                    src={issue.image_url || issue.image_base64}
+                    alt="Issue photo full size"
+                    className="modal-image"
+                    style={{
+                      transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                      transition: 'transform 0.1s ease',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain'
+                    }}
+                    onError={(e) => {
+                      console.error('Modal image failed to load:', e.target.src);
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'block';
+                    }}
+                  />
+                ) : null}
+                <div className="image-placeholder large" style={{ display: 'none' }}>
+                  <span>📷 Image Not Available</span>
+                  <p>Image could not be loaded</p>
                 </div>
               </div>
             </div>

@@ -8,11 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:build:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri build",
+    "tauri:build:network": "cross-env TAURI_API_ENDPOINT=http://civicbridge.duckdns.org/api/issues tauri build",
     "tauri:build:local": "cross-env TAURI_API_ENDPOINT=http://127.0.0.1:5000/api/issues tauri build",
-    "tauri:dev:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri dev",
-    "tauri:android:dev:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri android dev",
-    "tauri:android:build:network": "cross-env TAURI_API_ENDPOINT=http://10.42.19.207:5000/api/issues tauri android build"
+    "tauri:dev:network": "cross-env TAURI_API_ENDPOINT=http://civicbridge.duckdns.org/api/issues tauri dev",
+    "tauri:android:dev:network": "cross-env TAURI_API_ENDPOINT=http://civicbridge.duckdns.org/api/issues tauri android dev",
+    "tauri:android:build:network": "cross-env TAURI_API_ENDPOINT=http://civicbridge.duckdns.org/api/issues tauri android build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-fs": "^2.4.2",
     "@tauri-apps/plugin-geolocation": "^2.3.0",
     "@tauri-apps/plugin-opener": "^2",
+    "firebase": "^12.2.1",
     "leaflet": "^1.9.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

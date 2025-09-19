@@ -1,0 +1,26 @@
+{
+  "production": {
+    "issues_api": "http://civicbridge.duckdns.org/api/issues",
+    "auth_base": "http://civicbridge.duckdns.org",
+    "send_otp": "http://civicbridge.duckdns.org/auth/send-otp",
+    "verify_otp": "http://civicbridge.duckdns.org/auth/verify-otp",
+    "firebase_auth": "http://civicbridge.duckdns.org/auth/firebase",
+    "profile": "http://civicbridge.duckdns.org/auth/profile"
+  },
+  "development": {
+    "issues_api": "http://localhost:5000/api/issues",
+    "auth_base": "http://localhost:5000",
+    "send_otp": "http://localhost:5000/auth/send-otp",
+    "verify_otp": "http://localhost:5000/auth/verify-otp",
+    "firebase_auth": "http://localhost:5000/auth/firebase",
+    "profile": "http://localhost:5000/auth/profile"
+  },
+  "local_network": {
+    "issues_api": "http://10.42.19.207:5000/api/issues",
+    "auth_base": "http://10.42.19.207:5000",
+    "send_otp": "http://10.42.19.207:5000/auth/send-otp",
+    "verify_otp": "http://10.42.19.207:5000/auth/verify-otp",
+    "firebase_auth": "http://10.42.19.207:5000/auth/firebase",
+    "profile": "http://10.42.19.207:5000/auth/profile"
+  }
+}

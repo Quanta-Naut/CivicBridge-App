@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { API_ENDPOINTS } from '../utils/api';
 import { MdKeyboardArrowLeft } from "react-icons/md";
 import './Auth.css';
 
@@ -14,13 +15,24 @@ const AccountDetails = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
+    // Update form data when user context changes
+    if (user) {
+      setFormData({
+        fullName: user.full_name || '',
+        email: user.email || '',
+        address: user.address || '',
+        civicId: user.civic_id || ''
+      });
+    }
+    
     // Generate civic ID if user doesn't have one
-    if (!formData.civicId) {
+    if (!user?.civic_id && !formData.civicId) {
       generateCivicId();
     }
-  }, []);
+  }, [user]);
 
   const generateCivicId = () => {
     const prefix = 'CIV';
@@ -67,36 +79,60 @@ const AccountDetails = ({ onBack }) => {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:5000/auth/update-profile', {
+      // Get user data from localStorage for identification
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const civicId = userData.civic_id;
+
+      console.log('🔄 Updating profile for civic_id:', civicId);
+      console.log('📤 Sending data:', {
+        civic_id: civicId,
+        full_name: formData.fullName,
+        email: formData.email,
+        address: formData.address
+      });
+
+      if (!civicId) {
+        throw new Error('User identification missing. Please register again.');
+      }
+
+      const response = await fetch(API_ENDPOINTS.AUTH.UPDATE_PROFILE, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          civic_id: civicId, // Use civic_id for user identification
           full_name: formData.fullName,
           email: formData.email,
-          address: formData.address,
-          civic_id: formData.civicId
+          address: formData.address
         }),
       });
 
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📡 Response data:', data);
 
       if (response.ok) {
-        // Update user context with new data
-        const updatedUser = { ...user, ...data.user };
-        localStorage.setItem('userData', JSON.stringify(updatedUser));
-        login(updatedUser, token);
+        // Update user data in localStorage
+        const updatedUserData = {
+          ...userData,
+          full_name: formData.fullName,
+          email: formData.email,
+          address: formData.address,
+          civic_id: data.user?.civic_id || formData.civicId
+        };
+
+        localStorage.setItem('userData', JSON.stringify(updatedUserData));
+        localStorage.setItem('civicId', updatedUserData.civic_id);
+
         setSuccess('Profile updated successfully!');
-        
+
         // Go back after 2 seconds
         setTimeout(() => {
           onBack();
         }, 2000);
       } else {
-        setError(data.message || 'Failed to update profile');
+        setError(data.error || data.message || 'Failed to update profile');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -106,9 +142,21 @@ const AccountDetails = ({ onBack }) => {
   };
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    // Clear all user-related data from localStorage
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
+    localStorage.removeItem('civicId');
+
+    // Reload the page to reset the app state
     window.location.reload();
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   return (
@@ -129,14 +177,6 @@ const AccountDetails = ({ onBack }) => {
           <label className="form-label">Your Civic ID</label>
           <div className="civic-id-container">
             <span className="civic-id">{formData.civicId}</span>
-            <button 
-              type="button" 
-              className="regenerate-btn" 
-              onClick={generateCivicId}
-              disabled={loading}
-            >
-              Regenerate
-            </button>
           </div>
         </div>
 
@@ -144,7 +184,7 @@ const AccountDetails = ({ onBack }) => {
           <label className="form-label">Full Name</label>
           <input
             type="text"
-            className="form-input"
+            className='form-input'
             value={formData.fullName}
             onChange={(e) => handleInputChange('fullName', e.target.value)}
             placeholder="Enter your full name"
@@ -155,7 +195,7 @@ const AccountDetails = ({ onBack }) => {
           <label className="form-label">Email Address</label>
           <input
             type="email"
-            className="form-input"
+            className='form-input'
             value={formData.email}
             onChange={(e) => handleInputChange('email', e.target.value)}
             placeholder="Enter your email address"
@@ -164,8 +204,9 @@ const AccountDetails = ({ onBack }) => {
 
         <div className="form-group">
           <label className="form-label">Address</label>
-          <textarea
-            className="form-input textarea"
+          <input
+            type="text"
+            className='form-input'
             value={formData.address}
             onChange={(e) => handleInputChange('address', e.target.value)}
             placeholder="Enter your address"
@@ -197,6 +238,29 @@ const AccountDetails = ({ onBack }) => {
             Logout
           </button>
         </div>
+
+        {/* Logout Confirmation Dialog */}
+        {showLogoutConfirm && (
+          <div className="logout-confirm-overlay">
+            <div className="logout-confirm-dialog">
+              <div className="confirm-header">
+                <h3>Confirm Logout</h3>
+              </div>
+              <div className="confirm-content">
+                <p>Are you sure you want to logout?</p>
+                <p className="confirm-note">You will need to register again to access your account.</p>
+              </div>
+              <div className="confirm-actions">
+                <button className="confirm-btn cancel" onClick={cancelLogout}>
+                  Cancel
+                </button>
+                <button className="confirm-btn logout" onClick={confirmLogout}>
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,9 @@ use tauri::State;
 use std::sync::Mutex;
 use chrono;
 
+mod config;
+use config::{init_config, get_endpoint};
+
 #[cfg(feature = "api-client")]
 use reqwest::multipart;
 #[cfg(feature = "api-client")]
@@ -105,77 +108,11 @@ impl From<FlaskIssue> for Issue {
     }
 }
 
-// Helper function to get API endpoint with proper .env loading
+// Helper function to get API endpoint using configuration
 fn get_api_endpoint() -> String {
-    println!("🔍 Loading environment variables...");
-    
-    // Try multiple approaches to load .env file - including more specific paths
-    let paths = vec![
-        ".env", 
-        "../.env", 
-        "../../.env", 
-        "./app/.env",
-        "./src-tauri/.env",
-        "../src-tauri/.env",
-        "../../app/src-tauri/.env",
-        "./app/src-tauri/.env"
-    ];
-    
-    let mut loaded = false;
-    for path in &paths {
-        println!("  Checking: {}", path);
-        if dotenvy::from_filename(path).is_ok() {
-            println!("  ✅ Found and loaded .env from: {}", path);
-            loaded = true;
-            break;
-        }
-    }
-    
-    // Also try default dotenv (looks in current directory and parent directories)
-    if !loaded && dotenvy::dotenv().is_ok() {
-        println!("  ✅ Loaded .env using default dotenv search");
-        loaded = true;
-    }
-    
-    if !loaded {
-        println!("  ⚠️  No .env file found in searched locations");
-        println!("  📁 Current working directory: {:?}", std::env::current_dir().unwrap_or_default());
-        
-        // List files in current directory for debugging
-        if let Ok(entries) = std::fs::read_dir(".") {
-            println!("  📄 Files in current directory:");
-            for entry in entries.flatten() {
-                if let Ok(name) = entry.file_name().into_string() {
-                    println!("    - {}", name);
-                }
-            }
-        }
-    }
-    
-    // Check if environment variable is now available (runtime or compile-time)
-    match std::env::var("TAURI_API_ENDPOINT") {
-        Ok(endpoint) => {
-            println!("✅ Successfully loaded TAURI_API_ENDPOINT: {}", endpoint);
-            endpoint
-        }
-        Err(_) => {
-            // Try compile-time environment variable
-            match option_env!("TAURI_API_ENDPOINT") {
-                Some(endpoint) => {
-                    println!("✅ Using compile-time TAURI_API_ENDPOINT: {}", endpoint);
-                    endpoint.to_string()
-                }
-                None => {
-                    println!("⚠️  TAURI_API_ENDPOINT not found in runtime or compile-time environment variables");
-                    println!("🔧 Using fallback endpoint");
-                    let fallback = "http://localhost:5000/api/issues".to_string();
-                    println!("📡 Fallback endpoint: {}", fallback);
-                    fallback
-                }
-            }
-        }
-    }
+    get_endpoint("issues_api")
 }
+
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -366,7 +303,7 @@ fn get_issues(storage: State<IssueStorage>) -> Result<Vec<Issue>, String> {
 
 #[cfg(feature = "api-client")]
 #[tauri::command]
-async fn send_issue_to_flask_server(request: CreateIssueRequest) -> Result<String, String> {
+async fn send_issue_to_flask_server(request: CreateIssueRequest, auth_token: Option<String>) -> Result<String, String> {
     println!("=== RUST: Received issue data from frontend ===");
     println!("Title: {}", request.title);
     println!("Description: {}", request.description);
@@ -377,6 +314,10 @@ async fn send_issue_to_flask_server(request: CreateIssueRequest) -> Result<Strin
     println!("Longitude: {}", request.longitude);
     println!("Has Image: {}", request.image_data.is_some());
     println!("Has Audio: {}", request.audio_data.is_some());
+    println!("🔐 Auth token provided: {}", auth_token.is_some());
+    if let Some(ref token) = auth_token {
+        println!("🔐 Auth token length: {}", token.len());
+    }
     
     // Validate required fields
     if request.title.trim().is_empty() {
@@ -452,7 +393,17 @@ async fn send_issue_to_flask_server(request: CreateIssueRequest) -> Result<Strin
     println!("Sending multipart form to Flask...");
     println!("Request URL: {}", flask_url);
     
-    match client.post(&flask_url).multipart(form).send().await {
+    let mut request_builder = client.post(&flask_url).multipart(form);
+    
+    // Add authorization header if auth token is provided
+    if let Some(token) = &auth_token {
+        println!("🔐 Adding Authorization header with token (length: {})", token.len());
+        request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
+    } else {
+        println!("⚠️ No auth token provided - creating issue anonymously");
+    }
+    
+    match request_builder.send().await {
         Ok(response) => {
             let status = response.status();
             println!("Flask server responded with status: {}", status);
@@ -665,7 +616,7 @@ async fn send_otp_rust(mobile_number: String, otp_type: String, user_data: Optio
     println!("🔐 Sending OTP to mobile number: {}", mobile_number);
     
     let client = reqwest::Client::new();
-    let api_url = "http://10.42.19.207:5000/auth/send-otp";
+    let api_url = get_endpoint("send_otp");
     
     let request_body = SendOtpRequest {
         mobile_number: mobile_number.clone(),
@@ -710,7 +661,7 @@ async fn verify_otp_rust(mobile_number: String, otp: String, otp_type: String, u
     println!("🔐 Verifying OTP for mobile number: {}", mobile_number);
     
     let client = reqwest::Client::new();
-    let api_url = "http://10.42.19.207:5000/auth/verify-otp";
+    let api_url = get_endpoint("verify_otp");
     
     let request_body = VerifyOtpRequest {
         mobile_number: mobile_number.clone(),
@@ -780,9 +731,15 @@ async fn verify_otp_rust(mobile_number: String, otp: String, otp_type: String, u
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Load .env file at startup with better debugging
+    // Initialize configuration first
     println!("🚀 Starting Tauri application...");
     println!("📁 Current working directory: {:?}", std::env::current_dir().unwrap_or_default());
+    
+    // Initialize API configuration
+    if let Err(e) = init_config() {
+        println!("❌ Failed to initialize API configuration: {}", e);
+        println!("⚠️ Using fallback endpoints");
+    }
     
     // Test endpoint loading during startup
     let startup_endpoint = get_api_endpoint();

@@ -18,18 +18,24 @@
   width: 100%;
 }
 
-/* Header */
+/* Header - Compact */
 .issues-list-header {
-  padding: 16px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid #e0e0e0;
   background: white;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 40px;
-  margin-top: 35px;     
+  min-height: 36px;
+  margin-top: 35px;
   border-radius: 20px 20px 0 0;
   z-index: 0;
+}
+
+.issues-left-group {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* spacing between back button and title */
 }
 
 .back-btn {
@@ -50,7 +56,7 @@
 
 .issues-list-header h2 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: #000;
   flex: 1;
@@ -79,16 +85,14 @@
   cursor: not-allowed;
 }
 
-/* Search and Filters */
+/* Search and Filters - Compact */
 .search-filter-section {
-  padding: 16px 20px;
+  padding: 10px 20px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
   display: flex;
-  flex-direction: row;
-  gap: 12px;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between; /* left vs right */
 }
 
 .search-container {
@@ -121,18 +125,20 @@
 }
 
 .filter-toggle-btn {
-  background: white;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 10px 16px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 6px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.toggle-group {
+  display: flex;
+  gap: 10px;
 }
 
 .filter-toggle-btn:hover {
@@ -140,14 +146,14 @@
   border-color: #999;
 }
 
-/* Filters Container */
+/* Filters Container - Compact */
 .filters-container {
-  padding: 16px 20px;
+  padding: 12px 20px;
   background: white;
   border-bottom: 1px solid #e0e0e0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
+  gap: 12px;
   align-items: end;
 }
 
@@ -210,22 +216,39 @@
   flex-shrink: 0;
 }
 
+.my-issues-toggle,
+.open-issues-toggle {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.my-issues-toggle.active,
+.open-issues-toggle.active {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
 .my-issues-toggle:hover {
   border-color: #ccc;
   background: #f8f9fa;
 }
 
-.my-issues-toggle.active {
+/* .my-issues-toggle.active {
   background: #000 !important;
   color: white !important;
   border-color: #000 !important;
-}
+} */
 
 .my-issues-toggle.active:hover {
   background: #333 !important;
 }
 
-.open-issues-toggle {
+/* .open-issues-toggle {
   background: white !important;
   color: #333 !important;
   border: 2px solid #e0e0e0 !important;
@@ -242,7 +265,7 @@
   flex-shrink: 0;
   width: 20%;
   margin-right: 10px;
-}
+} */
 
 .open-issues-toggle:hover {
   border-color: #ccc !important;
@@ -259,15 +282,88 @@
   background: #333 !important;
 }
 
-/* Results Summary */
+/* Results Summary - Compact */
 .results-summary {
-  padding: 12px 20px;
+  padding: 6px 20px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #666;
   font-weight: 500;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
 }
+
+/* Flex row inside */
+.results-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+/* Left side info */
+.results-info {
+  color: #333;
+}
+
+/* Right side controls */
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Items per page dropdown */
+.items-per-page {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.items-per-page-select {
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Page navigation */
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-btn {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-btn:disabled {
+  background: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.page-btn:not(:disabled):hover {
+  border-color: #000;
+  color: #000;
+}
+
+.page-info {
+  font-weight: 600;
+  color: #444;
+}
+
 
 /* Issues List Content */
 .issues-list-content {
@@ -591,7 +687,7 @@
 
 /* Animation */
 .issues-list-container {
-  animation: slideInFromRight 0.3s ease-out;
+  /* animation: slideInFromRight 0.3s ease-out; */
   margin-bottom: 55px;
 }
 
@@ -601,5 +697,93 @@
   }
   to {
     transform: translateX(0);
+  }
+}
+
+
+
+.items-per-page {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.items-per-page-select {
+  padding: 2px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: white;
+  font-size: 12px;
+  min-width: 50px;
+  height: 24px;
+}
+
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  right: 0;
+  margin-left: 100px;
+}
+
+.page-btn {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #333;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  height: 24px;
+  min-width: 40px;
+  transition: all 0.2s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #bbb;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Responsive adjustments - More compact */
+@media (max-width: 768px) {
+  .results-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 6px 0;
+  }
+
+  .pagination-controls {
+    justify-content: space-between;
+  }
+
+  .page-navigation {
+    gap: 6px;
+  }
+
+  .page-btn {
+    padding: 3px 6px;
+    font-size: 11px;
+    min-width: 35px;
+  }
+
+  .items-per-page-select {
+    min-width: 45px;
   }
 }

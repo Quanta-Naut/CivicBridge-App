@@ -6,6 +6,7 @@ import "./IssueForm.css";
 import { FaPen } from "react-icons/fa";
 import { AiFillAudio } from "react-icons/ai";
 import { IoIosResize } from "react-icons/io";
+import { MdKeyboardArrowLeft } from "react-icons/md";
 
 const IssueForm = ({ onBack, onIssueCreated }) => {
   const [formData, setFormData] = useState({
@@ -15,6 +16,7 @@ const IssueForm = ({ onBack, onIssueCreated }) => {
     priority: "medium",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageLocation, setImageLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -29,6 +31,92 @@ const IssueForm = ({ onBack, onIssueCreated }) => {
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
   const [lastTouchDistance, setLastTouchDistance] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
+
+  // Image compression function
+  const compressImage = (imageDataUrl, targetQuality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Set canvas dimensions to image dimensions
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          // Draw image to canvas
+          ctx.drawImage(img, 0, 0, img.width, img.height);
+          
+          // Convert to compressed JPEG
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', targetQuality);
+          
+          console.log(`🔄 Compression result:`, {
+            originalSize: (imageDataUrl.length / 1024).toFixed(0) + 'KB',
+            compressedSize: (compressedDataUrl.length / 1024).toFixed(0) + 'KB',
+            quality: targetQuality,
+            compressionRatio: ((1 - compressedDataUrl.length / imageDataUrl.length) * 100).toFixed(1) + '%'
+          });
+          
+          resolve(compressedDataUrl);
+        };
+        
+        img.onerror = function() {
+          reject(new Error('Failed to load image for compression'));
+        };
+        
+        img.src = imageDataUrl;
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  // Smart compression with progressive quality adjustment
+  const smartCompressImage = async (imageDataUrl, maxSizeKB = 500) => {
+    const originalSizeKB = imageDataUrl.length / 1024;
+    console.log(`📏 Original image size: ${originalSizeKB.toFixed(0)}KB`);
+    
+    if (originalSizeKB <= maxSizeKB) {
+      console.log('✅ Image already within size limit');
+      return imageDataUrl;
+    }
+    
+    // Determine compression strategy
+    let quality;
+    if (originalSizeKB > 2000) { // > 2MB
+      quality = 0.3; // Heavy compression
+      console.log('🔥 Applying heavy compression (quality: 0.3)');
+    } else if (originalSizeKB > 1000) { // > 1MB
+      quality = 0.5; // Medium compression
+      console.log('🔶 Applying medium compression (quality: 0.5)');
+    } else {
+      quality = 0.7; // Light compression
+      console.log('🔸 Applying light compression (quality: 0.7)');
+    }
+    
+    let compressed = await compressImage(imageDataUrl, quality);
+    let attempts = 1;
+    
+    // Progressive quality reduction if still too large
+    while (compressed.length / 1024 > maxSizeKB && quality > 0.1 && attempts < 5) {
+      quality -= 0.1;
+      compressed = await compressImage(imageDataUrl, quality);
+      attempts++;
+      console.log(`🔄 Attempt ${attempts}: Quality ${quality.toFixed(1)}, Size: ${(compressed.length / 1024).toFixed(0)}KB`);
+    }
+    
+    const finalSizeKB = compressed.length / 1024;
+    const compressionRatio = ((originalSizeKB - finalSizeKB) / originalSizeKB * 100).toFixed(1);
+    
+    console.log(`✅ Final compression: ${originalSizeKB.toFixed(0)}KB → ${finalSizeKB.toFixed(0)}KB (${compressionRatio}% reduction)`);
+    
+    if (finalSizeKB > maxSizeKB) {
+      console.warn(`⚠️ Image still large after compression: ${finalSizeKB.toFixed(0)}KB (target: ${maxSizeKB}KB)`);
+    }
+    
+    return compressed;
+  };
 
   // Helper function to convert file to base64
   const fileToBase64 = (file) => {
@@ -261,15 +349,38 @@ const IssueForm = ({ onBack, onIssueCreated }) => {
     resetImageZoom();
   };
 
-  const handleImageSelected = (imageData) => {
-    console.log("Image selected:", {
+  const handleImageSelected = async (imageData) => {
+    console.log("📷 Image selected for processing:", {
       type: typeof imageData,
       length: imageData?.length,
       starts_with_data: imageData?.startsWith?.('data:'),
       first_50_chars: imageData?.substring?.(0, 50)
     });
-    setSelectedImage(imageData);
-    captureLocation(imageData);
+    
+    setIsProcessingImage(true);
+    
+    try {
+      let finalImageData = imageData;
+      
+      // Only compress if image is too large (>100KB threshold for mobile optimization)
+      if (imageData && imageData.length > 100 * 1024) {
+        console.log('🔄 Compressing image - original size:', (imageData.length / 1024).toFixed(0) + 'KB');
+        finalImageData = await smartCompressImage(imageData, 500); // Target 500KB max
+      } else {
+        console.log('✅ Image size acceptable - no compression needed');
+      }
+      
+      setSelectedImage(finalImageData);
+      captureLocation(finalImageData);
+      console.log('✅ Image processed successfully');
+    } catch (error) {
+      console.error('❌ Error processing image:', error);
+      // Fallback to original image if compression fails
+      setSelectedImage(imageData);
+      captureLocation(imageData);
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const handleAudioRecorded = (audioData) => {
@@ -694,10 +805,56 @@ const IssueForm = ({ onBack, onIssueCreated }) => {
         audio_data: audioBase64,
       };
 
-      // Submit to your Flask API server via Rust
-      const apiResponse = await invoke("send_issue_to_flask_server", {
-        request: requestData,
-      });
+      // Get auth token from localStorage
+      const authToken = localStorage.getItem('authToken');
+      console.log('🔐 IssueForm: Auth token exists:', !!authToken);
+      
+      let apiResponse;
+      
+      // Try direct API call first (more reliable for authentication)
+      try {
+        console.log('🌐 Attempting direct API call...');
+        
+        // Create FormData for direct API call
+        const formData = new FormData();
+        formData.append('title', requestData.title);
+        formData.append('description', requestData.description);
+        formData.append('latitude', requestData.latitude.toString());
+        formData.append('longitude', requestData.longitude.toString());
+        formData.append('category', requestData.category);
+        formData.append('priority', requestData.priority);
+        formData.append('description_mode', requestData.description_mode);
+        
+        // Add image if present
+        if (requestData.image_data) {
+          // Convert base64 back to blob for FormData
+          const imageBlob = await fetch(`data:image/jpeg;base64,${requestData.image_data}`).then(r => r.blob());
+          formData.append('image', imageBlob, 'issue_image.jpg');
+        }
+        
+        // Add audio if present
+        if (requestData.audio_data) {
+          // Convert base64 back to blob for FormData
+          const audioBlob = await fetch(`data:audio/webm;base64,${requestData.audio_data}`).then(r => r.blob());
+          formData.append('audio', audioBlob, 'issue_audio.webm');
+        }
+        
+        // Use the API utility with authentication
+        const { issueAPI } = await import('../utils/api');
+        const directApiResponse = await issueAPI.createIssue(formData);
+        
+        console.log('✅ Direct API call successful:', directApiResponse);
+        apiResponse = JSON.stringify(directApiResponse);
+        
+      } catch (directApiError) {
+        console.warn('⚠️ Direct API call failed, falling back to Rust backend:', directApiError);
+        
+        // Fallback to Rust backend
+        apiResponse = await invoke("send_issue_to_flask_server", {
+          request: requestData,
+          auth_token: authToken, // Pass the auth token (snake_case to match Rust)
+        });
+      }
       
       console.log("Flask API Response:", apiResponse);
       
@@ -777,6 +934,9 @@ const IssueForm = ({ onBack, onIssueCreated }) => {
       {/* Top Black Bar */}
       <div className="top-black-bar"></div>
       <div className="issue-form-header">
+        <button className="back-btn" onClick={onBack}>
+          <MdKeyboardArrowLeft />
+        </button>
         <h2>Report New Issue</h2>
       </div>
 
@@ -787,6 +947,30 @@ const IssueForm = ({ onBack, onIssueCreated }) => {
             onImageSelected={handleImageSelected} 
             buttonText={selectedImage ? "Retake Picture" : "Take a Picture"}
           />
+          {isProcessingImage && (
+            <div className="processing-indicator" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '10px',
+              backgroundColor: '#f0f0f0',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              margin: '10px 0',
+              color: '#666'
+            }}>
+              <div style={{
+                width: '20px',
+                height: '20px',
+                border: '2px solid #f3f3f3',
+                borderTop: '2px solid #3498db',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                marginRight: '10px'
+              }}></div>
+              Processing and compressing image...
+            </div>
+          )}
           {selectedImage && (
             <div className="image-preview-section">
               <div className="image-container">

@@ -102,15 +102,8 @@
   flex-direction: column;
   gap: 8px;
   align-items: center;
-  text-align: center;
+  text-align: left;
   width: 100%;
-}
-
-.form-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
 }
 
 .form-input {
@@ -121,16 +114,16 @@
   background: white;
   transition: all 0.2s ease;
   outline: none;
+  text-align: left;
 }
 
-.form-input:focus {
-  border-color: #000000;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
 }
 
-.form-input::placeholder {
-  color: #999;
-}
 
 .textarea {
   resize: vertical;
@@ -311,6 +304,126 @@
   text-align: center;
 }
 
+/* Logout Confirmation Dialog */
+.logout-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(2px);
+}
+
+.logout-confirm-dialog {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 320px;
+  width: 90%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: dialogSlideIn 0.3s ease-out;
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.confirm-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.confirm-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.confirm-content {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.confirm-content p {
+  font-size: 16px;
+  color: #666;
+  margin: 8px 0;
+}
+
+.confirm-note {
+  font-size: 14px;
+  color: #888;
+  font-style: italic;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+}
+
+.confirm-btn.cancel {
+  background: #6c757d;
+  color: white;
+}
+
+.confirm-btn.cancel:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.confirm-btn.logout {
+  background: #dc3545;
+  color: white;
+}
+
+.confirm-btn.logout:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .logout-confirm-dialog {
+    margin: 20px;
+    padding: 20px;
+  }
+
+  .confirm-actions {
+    flex-direction: column;
+  }
+
+  .confirm-btn {
+    max-width: none;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 480px) {
   .auth-header {
@@ -386,7 +499,6 @@
 .mobile-display {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
   border: 2px solid #e1e5e9;
   border-radius: 8px;
   background: #f8f9fa;
@@ -421,18 +533,26 @@
 }
 
 .logout-link {
-  background: none;
-  border: none;
-  color: #dc3545;
+  background: #dc3545;
+  border: 2px solid #dc3545;
+  color: white;
   font-weight: 600;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 12px 24px;
+  border-radius: 8px;
   transition: all 0.2s ease;
+  font-size: 16px;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  display: block;
 }
 
 .logout-link:hover {
-  background: rgba(220, 53, 69, 0.1);
+  background: #c82333;
+  border-color: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
 }
 
 /* Simple Auth Styles */
@@ -467,12 +587,13 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 60px;
   background: white;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  text-align: left;
 }
 
 .top-black-bar {
@@ -487,17 +608,18 @@
   background: white;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 40px;
+  gap: 12px; /* space between back button and text */
+  height: 65px;
   margin-top: 35px;     
   border-radius: 20px 20px 0 0;
   z-index: 0;
 }
 
-.account-details-header .back-btn {
+
+.back-btn {
   background: none;
   border: none;
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   font-weight: 600;
   color: #333;
   cursor: pointer;
@@ -512,13 +634,10 @@
 
 .account-details-header h2 {
   margin: 0;
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 600;
   color: #000;
-  flex: 1;
-  text-align: center;
 }
-
 .account-details-content {
   flex: 1;
   overflow-y: auto;
@@ -526,7 +645,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
+  text-align: left;
 }
 
 .account-details-content .civic-id-display,
@@ -536,13 +655,13 @@
 .account-details-content .logout-section {
   width: 100%;
   max-width: 400px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .account-details-content .form-input,
 .account-details-content .form-input.textarea {
   border: 1px solid #000 !important;
-  text-align: center;
+  text-align: left;
 }
 
 .account-details-content .civic-id-container {
