@@ -1443,187 +1443,6 @@ def verify_otp():
         print(f"Error verifying OTP: {e}")
         return jsonify({'error': 'Authentication failed'}), 500
 
-@app.route('/auth/send-phone-otp', methods=['POST'])
-def send_phone_otp():
-    """Send OTP to phone number using Firebase Admin SDK"""
-    log_api_access('/auth/send-phone-otp', 'POST', request.remote_addr)
-    
-    try:
-        if not FIREBASE_AVAILABLE:
-            return jsonify({
-                'success': False, 
-                'error': 'Firebase Admin SDK not available'
-            }), 500
-            
-        data = request.get_json()
-        phone_number = data.get('phone')
-        
-        if not phone_number:
-            return jsonify({
-                'success': False, 
-                'error': 'Phone number is required'
-            }), 400
-            
-        # Normalize phone number (ensure it starts with +)
-        if not phone_number.startswith('+'):
-            # Assume Indian number if no country code
-            phone_number = '+91' + phone_number.lstrip('0')
-            
-        print(f"Sending OTP to: {phone_number}")
-        
-        # Create or get existing user in Firebase
-        try:
-            user = auth.get_user_by_phone_number(phone_number)
-            print(f"Found existing Firebase user: {user.uid}")
-        except auth.UserNotFoundError:
-            print(f"Creating new Firebase user for: {phone_number}")
-            user = auth.create_user(phone_number=phone_number)
-            print(f"Created new Firebase user: {user.uid}")
-        except Exception as e:
-            print(f"Error with Firebase user: {e}")
-            return jsonify({
-                'success': False,
-                'error': f'Failed to create/find user: {str(e)}'
-            }), 500
-            
-        # Generate custom token for this user
-        custom_token = auth.create_custom_token(user.uid).decode('utf-8')
-        
-        # Store user info temporarily (in production, you might want to use Redis)
-        # For now, we'll include it in the response
-        user_info = {
-            'uid': user.uid,
-            'phone': phone_number,
-            'custom_token': custom_token
-        }
-        
-        print(f"Generated custom token for user: {user.uid}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Custom token generated successfully',
-            'data': {
-                'custom_token': custom_token,
-                'uid': user.uid,
-                'phone': phone_number
-            }
-        })
-        
-    except Exception as e:
-        print(f"Error in send_phone_otp: {e}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to send OTP: {str(e)}'
-        }), 500
-
-@app.route('/auth/verify-custom-token', methods=['POST'])
-def verify_custom_token():
-    """Verify custom token and authenticate user"""
-    log_api_access('/auth/verify-custom-token', 'POST', request.remote_addr)
-    
-    try:
-        data = request.get_json()
-        custom_token = data.get('customToken')
-        
-        if not custom_token:
-            return jsonify({
-                'success': False,
-                'error': 'Custom token is required'
-            }), 400
-            
-        # For custom tokens, we need to decode and verify them
-        # Since we generated the custom token, we can verify it's valid
-        # In a production setup, you'd verify the token signature
-        
-        # The custom token will be used by the frontend to sign in with Firebase
-        # We'll create our own JWT for the backend session
-        
-        # For now, let's extract the UID from the custom token
-        # Note: This is a simplified approach - in production, use proper JWT verification
-        try:
-            import jwt
-            # Decode without verification for now (since it's our own token)
-            payload = jwt.decode(custom_token, options={"verify_signature": False})
-            uid = payload.get('uid')
-            
-            if not uid:
-                return jsonify({
-                    'success': False,
-                    'error': 'Invalid token format'
-                }), 400
-                
-            # Get user from Firebase
-            user = auth.get_user(uid)
-            phone_number = user.phone_number
-            
-            # Normalize phone for database
-            normalized_phone = normalize_phone_number(phone_number)
-            
-            # Check/create user in Supabase
-            db_user = None
-            if supabase:
-                try:
-                    response = supabase.table('users').select('*').eq('mobile_number', normalized_phone).execute()
-                    if response.data and len(response.data) > 0:
-                        db_user = response.data[0]
-                        print(f"Found existing user: {normalized_phone}")
-                except Exception as e:
-                    print(f"Error checking user in Supabase: {e}")
-
-            if not db_user:
-                # Create new user in Supabase
-                user_data = {
-                    'mobile_number': normalized_phone,
-                    'firebase_uid': uid,
-                    'civic_id': generate_civic_id(),
-                    'is_verified': True,
-                    'auth_provider': 'firebase_custom'
-                }
-
-                if supabase:
-                    try:
-                        response = supabase.table('users').insert(user_data).execute()
-                        if response.data and len(response.data) > 0:
-                            db_user = response.data[0]
-                        print(f"✓ Created new user: {normalized_phone}")
-                    except Exception as e:
-                        print(f"Error creating user in Supabase: {e}")
-                        # Fallback user data
-                        db_user = user_data
-                        db_user['id'] = uid
-                        
-            # Generate backend JWT token
-            jwt_token = generate_jwt_token(db_user['id'], normalized_phone)
-            
-            return jsonify({
-                'success': True,
-                'message': 'Authentication successful',
-                'token': jwt_token,
-                'user': {
-                    'id': db_user.get('id'),
-                    'mobile_number': db_user.get('mobile_number'),
-                    'firebase_uid': db_user.get('firebase_uid'),
-                    'civic_id': db_user.get('civic_id'),
-                    'full_name': db_user.get('full_name'),
-                    'email': db_user.get('email'),
-                    'address': db_user.get('address')
-                }
-            })
-            
-        except Exception as decode_error:
-            print(f"Error decoding custom token: {decode_error}")
-            return jsonify({
-                'success': False,
-                'error': 'Invalid custom token'
-            }), 400
-            
-    except Exception as e:
-        print(f"Error in verify_custom_token: {e}")
-        return jsonify({
-            'success': False,
-            'error': f'Token verification failed: {str(e)}'
-        }), 500
-
 @app.route('/auth/firebase', methods=['POST'])
 def firebase_auth():
     """Handle Firebase phone authentication"""
@@ -1850,6 +1669,80 @@ def update_profile():
     except Exception as e:
         print(f"Error updating profile: {e}")
         return jsonify({'error': 'Failed to update profile'}), 500
+
+@app.route('/auth/register', methods=['POST'])
+def register_user():
+    """Handle simplified user registration without authentication"""
+    log_api_access('/auth/register', 'POST', request.remote_addr)
+
+    try:
+        data = request.get_json()
+        phone_number = data.get('phoneNumber')
+
+        if not phone_number:
+            return jsonify({'success': False, 'message': 'Phone number required'}), 400
+
+        # Normalize phone number to fit database format (10 digits, remove country code)
+        normalized_phone = normalize_phone_number(phone_number)
+
+        print(f"Registering user with phone: {phone_number}, Normalized: {normalized_phone}")
+
+        # Check if user already exists
+        user = None
+        if supabase:
+            try:
+                response = supabase.table('users').select('*').eq('mobile_number', normalized_phone).execute()
+                if response.data and len(response.data) > 0:
+                    user = response.data[0]
+                    print(f"Found existing user: {normalized_phone}")
+                    return jsonify({
+                        'success': True,
+                        'message': 'User already exists',
+                        'user': user
+                    }), 200
+            except Exception as e:
+                print(f"Error checking user in Supabase: {e}")
+
+        # Create new user
+        user_data = {
+            'mobile_number': normalized_phone,
+            'civic_id': generate_civic_id(),
+            'is_verified': True,
+            'auth_provider': 'direct'
+        }
+
+        if supabase:
+            try:
+                response = supabase.table('users').insert(user_data).execute()
+                if response.data and len(response.data) > 0:
+                    user = response.data[0]
+                print(f"✓ Created new user: {normalized_phone} with Civic ID: {user_data['civic_id']}")
+            except Exception as e:
+                print(f"Error creating user in Supabase: {e}")
+                return jsonify({'success': False, 'message': 'Failed to create user in database'}), 500
+        else:
+            # Fallback for development without Supabase
+            user = {
+                'id': str(uuid.uuid4()),
+                'mobile_number': normalized_phone,
+                'civic_id': user_data['civic_id'],
+                'is_verified': True,
+                'auth_provider': 'direct',
+                'full_name': '',
+                'email': '',
+                'address': ''
+            }
+            print(f"✓ Created new user (fallback): {normalized_phone} with Civic ID: {user_data['civic_id']}")
+
+        return jsonify({
+            'success': True,
+            'message': 'User registered successfully',
+            'user': user
+        }), 201
+
+    except Exception as e:
+        print(f"Error in user registration: {e}")
+        return jsonify({'success': False, 'message': 'Registration failed'}), 500
 
 if __name__ == '__main__':
     from datetime import datetime
