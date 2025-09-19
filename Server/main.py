@@ -1594,66 +1594,67 @@ def get_profile():
 def update_profile():
     """Update user profile details"""
     log_api_access('/auth/update-profile', 'PUT', request.remote_addr)
-    
+
     try:
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({'error': 'Authorization token required'}), 401
-        
-        token = auth_header.split(' ')[1]
-        payload = verify_auth_token(token)
-        
-        if not payload:
-            return jsonify({'error': 'Invalid or expired token'}), 401
-        
         data = request.get_json()
+        civic_id = data.get('civic_id')
+
+        if not civic_id:
+            return jsonify({'error': 'Civic ID required for identification'}), 400
+
         full_name = data.get('full_name')
         email = data.get('email')
         address = data.get('address')
-        civic_id = data.get('civic_id')
-        
+
         if not all([full_name, email, address]):
             return jsonify({'error': 'Full name, email, and address are required'}), 400
-        
+
         # Validate email
         import re
         email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
         if not re.match(email_regex, email):
             return jsonify({'error': 'Invalid email format'}), 400
-        
+
         if supabase:
-            # Check if civic_id already exists for another user
-            if civic_id:
-                existing = supabase.table('users').select('id').eq('civic_id', civic_id).neq('id', payload['user_id']).execute()
+            # Find user by civic_id
+            user_query = supabase.table('users').select('*').eq('civic_id', civic_id).execute()
+            if not user_query.data:
+                return jsonify({'error': 'User not found'}), 404
+
+            user_id = user_query.data[0]['id']
+
+            # Check if civic_id already exists for another user (if user is trying to change it)
+            if civic_id != user_query.data[0]['civic_id']:
+                existing = supabase.table('users').select('id').eq('civic_id', civic_id).neq('id', user_id).execute()
                 if existing.data:
                     # Generate a new civic_id if conflict
                     civic_id = generate_civic_id()
-            
+
             # Update user profile
             update_data = {
                 'full_name': full_name,
                 'email': email,
                 'address': address,
-                'civic_id': civic_id or generate_civic_id(),
+                'civic_id': civic_id,
                 'updated_at': datetime.now().isoformat()
             }
-            
-            result = supabase.table('users').update(update_data).eq('id', payload['user_id']).execute()
+
+            result = supabase.table('users').update(update_data).eq('id', user_id).execute()
             user = result.data[0] if result.data else None
-            
+
             if not user:
                 return jsonify({'error': 'Failed to update user'}), 500
         else:
             # Fallback for development
             user = {
-                'id': payload['user_id'],
-                'mobile_number': payload['mobile_number'],
-                'civic_id': civic_id or generate_civic_id(),
+                'id': 'dev-user-id',
+                'civic_id': civic_id,
                 'full_name': full_name,
                 'email': email,
-                'address': address
+                'address': address,
+                'mobile_number': 'dev-mobile'
             }
-        
+
         return jsonify({
             'message': 'Profile updated successfully',
             'user': {
